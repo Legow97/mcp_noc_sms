@@ -1,0 +1,42 @@
+______________
+⚠️⚠️⚠️ REQ0000000XXXX  - CLARO TE RECOMIENDA - INCONVENIENTES CON EL ACCESO ⚠️⚠️⚠️
+______________
+
+📋TICKET: 
+
+ -REQ0000000XXXX
+
+
+☀️ IMPACTO
+
+- INCONVENIENTES CON EL ACCESO 
+- SIN TRANSACCIONES DENTRO DEL PORTAL
+
+⚒️ACCIONES:
+
+7:16 hrs. Se apertura sala TEAMS para la revisión.
+7:18 hrs. Sube el equipo de SOAP XXXXX POSTVENTAS.
+7:21 hrs. Se informa que el impacto es masivo ya que no se puede acceder a la web
+7:23 hrs. SOAP XXXXX POSTVENTAS indica que están revisando logs para mayores descarte.
+7:32 hrs. SOAP XXXXX INTEGRACION sube a sala para mayor descarte de un servidor (error en datapower) - http://172.19.XXX.X:XXX/v1.0/plataforma-XXXXXXX/enterprise_Domain/administrative/registroAuditoria/registroAuditoria
+7:34 hrs. SOAP XXXXX INTEGRACION revisa que los siguientes servidores 172.20.219.85 | 172.20.219.84 | 172.19.98.94 | 172.19.98.93 por indicación del equipo SOAP HITSS POSTVENTA. 
+7:36 hrs. SOAP XXXXX INTEGRACION indica que hoy en madrugada han sido modificados y se requiere de mayor información sobre los pases.
+7:42 hrs. Se revisa los pases (TAS0000000XXXXX) de madrugada y se verifica que dichas IPS 172.20.219.85 | 172.20.219.84 | 172.19.98.94 | 172.19.98.93 han sido retiradas.
+Se pedirá el rollback al PAP.
+7:50 hrs. SOAP XXXXX POSTVENTAS formaliza la revisión de las IPS 172.20.219.85 | 172.20.219.84 | 172.19.98.94 | 172.19.98.93 | 172.20.219.83 | 172.20.219.82 | 172.19.98.92 | 172.19.98.91 mediante correo al equipo de INTEGRACION para que luego ser revisado por el PAP solicitando rollback.
+7:56 hrs. SOAP XXXXX INTEGRACION envia correo al SOAP CLARO INTEGRACION para que aprueba el rollback del pase TAS0000000XXXXX  
+8:06 hrs. SOAP XXXXX INTEGRACION autoriza el rollback de TAS0000000XXXXX - DATAPOWER , Equipo PAP sube a sala y procederá con la ejecución.
+8:13 hrs. EQUIPO PAP XXXXX indica el termino del rollback , SOAP XXXXX POSTVENTAS valida el acceso a la web. Se pide a ATU validar con los usuarios.
+8:26 hrs. Se da la conformidad por parte del equipo ATU en consulta con los usuarios, se finaliza sala.
+ 
+🔎CAUSA
+
+- Error 403 en DATAPOWER debido al pase TAS0000000XXXXX donde las siguientes IPS han sido retiradas | IPS 172.20.XX.XX | 172.20.XX.XX | 172.19.YY.YY | 172.19.XX.XX 
+
+✅SOLUCIÓN
+
+- ROLLBACK DEL TAS0000000XXXXX -DATAPOWER
+
+
+⏰FECHA/H.Inicio: 13/03/2026 7:16 hrs.
+⏰FECHA/H.Fin:    13/03/2026 8:13 hrs.
