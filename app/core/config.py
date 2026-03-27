@@ -50,7 +50,7 @@ class DatabaseSettings(BaseAppSettings):
 
 
 class ModelProviderSettings(BaseAppSettings):
-    """Configuración de proveedores de modelos."""
+    """Configuración general de proveedores de modelos del sistema."""
 
     default_provider: str = Field(
         default="gemini",
@@ -88,6 +88,35 @@ class FeatureSettings(BaseAppSettings):
     )
 
 
+class AgenticModelSettings(BaseAppSettings):
+    """Configuración del subsistema agentic de extracción canónica."""
+
+    primary_extractor_model: str = Field(
+        default="Qwen/Qwen2.5-7B-Instruct",
+        alias="PRIMARY_EXTRACTOR_MODEL",
+    )
+    semantic_judge_model: str = Field(
+        default="meta-llama/Llama-3.1-8B-Instruct",
+        alias="SEMANTIC_JUDGE_MODEL",
+    )
+    fallback_extractor_model: str = Field(
+        default="deepseek-ai/DeepSeek-R1-Distill-Qwen-7B",
+        alias="FALLBACK_EXTRACTOR_MODEL",
+    )
+    provider: str = Field(
+        default="openai_compatible",
+        alias="AGENTIC_PROVIDER",
+    )
+    api_base_url: str = Field(
+        default="",
+        alias="AGENTIC_API_BASE_URL",
+    )
+    api_key: str = Field(
+        default="",
+        alias="AGENTIC_API_KEY",
+    )
+
+
 class Settings:
     """
     Objeto raíz de configuración.
@@ -103,6 +132,7 @@ class Settings:
         self.models = ModelProviderSettings()
         self.logging = LoggingSettings()
         self.features = FeatureSettings()
+        self.agentic_models = AgenticModelSettings()
 
 
 @lru_cache(maxsize=1)
