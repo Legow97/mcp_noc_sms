@@ -99,9 +99,9 @@ La puntuación final debe expresarse en escala **1 a 10**.
 
 ### 5.2 Umbrales
 
-- **8.0 a 10.0** → `accepted`
-- **7.0 a <8.0** → `accepted_with_observations`
-- **<7.0** → `rejected`
+- **9.0 a 10.0** → `accepted`
+- **8.0 a <9.0** → `accepted_with_observations`
+- **<8.0** → `rejected`
 
 ### 5.3 Regla adicional
 
@@ -132,7 +132,7 @@ El juez debe puntuar la propuesta usando estos criterios ponderados.
 
 **Pregunta principal:**
 
-- ¿La extracción capturó los elementos importantes que sí estaban presentes?
+- ¿La extracción capturó los elementos importantes que sí estaban presentes en el documento fuente?
 
 **Evaluar:**
 
@@ -142,8 +142,22 @@ El juez debe puntuar la propuesta usando estos criterios ponderados.
 - `tickets`
 - `causa explícita` si existe
 - `solución explícita` si existe
-- `timeline` si hay cronología
-- `troubleshooting_actions` si hay acciones claras
+- `timeline_entries` si existe bitácora operativa
+- `troubleshooting_actions` si existen acciones técnicas o diagnósticas claras
+
+#### Regla de severidad para cobertura
+El juez debe ser estricto con cobertura cuando el SMS contenga una bitácora operativa detallada.
+
+- Si el documento fuente contiene una secuencia operativa cronológica rica, no debe premiarse una propuesta que conserve solo una fracción pequeña de esa secuencia.
+- Si el documento fuente contiene múltiples hitos relevantes de diagnóstico, validación, coordinación, descarte, revisión técnica o remediación, la omisión de esos hitos debe penalizar fuertemente `coverage`.
+- Una propuesta no debe recibir `coverage` alta si resume en exceso una bitácora extensa y omite pasos intermedios importantes para entender cómo evolucionó el incidente.
+
+#### Señales de cobertura insuficiente
+Penalizar cuando:
+- la cronología real del caso queda reducida de forma agresiva
+- faltan hitos importantes de la bitácora
+- faltan acciones diagnósticas explícitas
+- se conserva solo apertura, solución y cierre, omitiendo el proceso intermedio
 
 ### 6.3 Calidad de clasificación estructural — 20%
 
@@ -236,11 +250,86 @@ Si existe error crítico:
 - `header` es razonable
 - `failure_text` representa el problema principal
 - `impact_text` representa la afectación real
+- `start_time` solo se llena cuando existe una fecha/hora de inicio explícita y suficientemente clara en el SMS
 - `incident_status` no contradice el documento
 - `pending_rca` es prudente
 - `probable_cause_text` solo se llena con respaldo suficiente
 - `resolution_summary` no inventa remediación
 - `tickets` son reales y consistentes
+
+### 9.2 Sobre `timeline_entries`
+
+El juez debe evaluar `timeline_entries` con criterio estricto cuando el SMS contenga una **bitácora operativa explícita**.
+
+#### Qué debe entender el juez por bitácora operativa
+La bitácora operativa es el bloque del SMS que narra la evolución temporal del incidente paso a paso.
+
+Suele aparecer después de encabezados como:
+
+- `ACCIONES:`
+- `SOLUCIONADO:`
+
+u otros encabezados equivalentes que introducen el desarrollo operativo del caso.
+
+#### Regla de evaluación general
+- Si el documento fuente contiene una bitácora operativa explícita, el juez debe verificar si la propuesta refleja de manera suficiente esa cronología en `timeline_entries`.
+- Cuando la bitácora contiene múltiples entradas cronológicas que inician con hora, cada una de esas entradas debe evaluarse como un **candidato fuerte** a `timeline_entry`.
+- El juez no debe asumir que toda hora presente en cualquier parte del SMS es automáticamente un `timeline_entry`; la exigencia aplica específicamente al cuerpo de la bitácora operativa.
+
+#### Qué debe penalizar el juez
+Penalizar cuando:
+- faltan múltiples entradas horarias relevantes de la bitácora
+- se omiten pasos intermedios importantes del desarrollo del incidente
+- se resume una bitácora extensa a solo unos pocos hitos
+- se pierden eventos de revisión, descarte, coordinación, autorización, validación o conformidad claramente narrados en la bitácora
+
+#### Qué debe considerar cobertura adecuada
+Una propuesta tiene buena cobertura de `timeline_entries` si:
+- representa de forma razonablemente completa la secuencia operativa del incidente
+- conserva los hitos relevantes del desarrollo temporal
+- permite reconstruir el flujo del incidente sin perder pasos importantes
+
+#### Consecuencia evaluativa
+- Si la bitácora operativa del SMS es extensa y la propuesta omite una parte sustancial de sus entradas, el juez no debe asignar score alto en `coverage`.
+- Si la omisión afecta la trazabilidad del incidente, la decisión debe tender a `accepted_with_observations` o `rejected`, según la magnitud de la pérdida.
+
+### 9.3 Sobre `troubleshooting_actions`
+
+El juez debe evaluar `troubleshooting_actions` con rigor cuando el SMS describa acciones técnicas, diagnósticas o de validación vinculadas al proceso de resolución.
+
+#### Regla de evaluación general
+- Si el documento fuente contiene acciones claras de revisión, descarte, validación, rollback, monitoreo, revisión de logs, verificación de servidores, revisión de IPs, revisión de pases o validaciones funcionales, el juez debe verificar si esas acciones fueron reflejadas adecuadamente en `troubleshooting_actions`.
+- No basta con capturar únicamente la remediación final si el documento fuente describe varias acciones relevantes previas.
+
+#### Qué debe penalizar el juez
+Penalizar cuando:
+- solo aparece la acción final de remediación y se omiten acciones diagnósticas previas
+- faltan acciones explícitas de revisión técnica
+- faltan actividades de descarte claramente descritas
+- faltan validaciones técnicas o funcionales relevantes
+- la propuesta reduce el troubleshooting a una sola acción cuando el SMS describe un proceso técnico más amplio
+
+#### Qué debe considerar cobertura adecuada
+Una propuesta tiene buena cobertura de `troubleshooting_actions` si:
+- representa las acciones técnicas relevantes presentes en el SMS
+- distingue razonablemente entre diagnóstico, remediación y validación
+- conserva las acciones que permiten entender cómo se llegó a la solución
+
+#### Regla específica sobre clasificación
+El juez debe revisar también si las acciones fueron clasificadas con prudencia:
+
+- actividades de revisión o descarte deben tender a roles diagnósticos
+- actividades de rollback o corrección deben tender a remediación
+- actividades de validación o conformidad deben tender a validación
+
+Si la clasificación es imperfecta pero razonable, puede aceptarse con observaciones.
+Si la propuesta omite casi todo el troubleshooting o cambia fuertemente su significado, debe penalizarse con mayor severidad.
+
+#### Consecuencia evaluativa
+- Si el SMS describe varias acciones técnicas y la propuesta solo conserva una fracción pequeña, el juez no debe asignar score alto en `coverage`.
+- Si además la omisión afecta la comprensión del proceso de resolución, debe reflejarse claramente en `issues`, `improvement_actions` y `feedback`.
+
+---
 
 ## 10. Reglas de prudencia
 

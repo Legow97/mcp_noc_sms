@@ -44,6 +44,7 @@ class IncidentIngestionService:
             header=parsed_sms.header,
             failure_text=parsed_sms.failure_text,
             impact_text=parsed_sms.impact_text,
+            start_time=parsed_sms.start_time,
             solution_time=payload.received_at.replace(tzinfo=timezone.utc),
             status=parsed_sms.incident_status,
             pending_rca=parsed_sms.pending_rca,
@@ -61,4 +62,10 @@ class IncidentIngestionService:
             enrichment_json=parsed_sms.enrichment_json,
         )
 
-        return self._incident_case_repository.create(incident_case)
+        try:
+            persisted_case = self._incident_case_repository.add(incident_case)
+            self._db.commit()
+            return persisted_case
+        except Exception:
+            self._db.rollback()
+            raise

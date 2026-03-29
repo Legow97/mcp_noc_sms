@@ -11,10 +11,13 @@ def build_canonical_extraction_response_schema() -> dict:
             "incident_case": {
                 "type": "OBJECT",
                 "properties": {
+                    "case_id": {"type": "STRING"},
                     "source_type": {"type": "STRING"},
                     "header": {"type": "STRING"},
                     "failure_text": {"type": "STRING"},
                     "impact_text": {"type": "STRING"},
+                    "start_time": {"type": "STRING"},
+                    "solution_time": {"type": "STRING"},
                     "incident_status": {"type": "STRING"},
                     "pending_rca": {"type": "BOOLEAN"},
                     "raw_sms": {"type": "STRING"},

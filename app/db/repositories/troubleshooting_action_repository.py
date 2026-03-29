@@ -14,15 +14,36 @@ class TroubleshootingActionRepository:
     def __init__(self, db_session: Session) -> None:
         self._db = db_session
 
-    def bulk_create(
+    def add_many(
         self,
         actions: list[TroubleshootingActionModel],
     ) -> list[TroubleshootingActionModel]:
         """
-        Persiste múltiples acciones de troubleshooting en una sola operación.
+        Agrega múltiples acciones de troubleshooting a la sesión activa sin cerrar la transacción.
         """
+        print(
+            "[REPOSITORY] Agregando troubleshooting actions:",
+            {
+                "count": len(actions),
+                "items": [
+                    {
+                        "case_id": action.case_id,
+                        "sequence_order": action.sequence_order,
+                        "action_type": action.action_type,
+                        "action_role": action.action_role,
+                        "target_component": action.target_component,
+                        "action_text": action.action_text[:160],
+                    }
+                    for action in actions
+                ],
+            },
+        )
         self._db.add_all(actions)
-        self._db.commit()
+        self._db.flush()
+        print(
+            "[REPOSITORY] flush() exitoso para troubleshooting actions:",
+            {"count": len(actions)},
+        )
 
         for action in actions:
             self._db.refresh(action)

@@ -1,382 +1,362 @@
-# Incident Extraction Rules
+# Incident Extraction Runtime Rules
 
-## 1. Objetivo
+## 1. Rol
 
-Este documento define las reglas de extracción, clasificación y validación para convertir SMS bitácora operativos en un esquema canónico persistible por el Servicio de Memoria Operativa de Incidentes.
+Eres el extractor principal del subsistema Canonical Extraction Service.
 
-La extracción debe funcionar incluso cuando el SMS:
-- sea redactado por personas distintas
-- tenga ligeras variaciones de sintaxis
-- cambie gradualmente de formato
-- mezcle etiquetas, texto libre y secciones operativas
+Tu tarea es leer un SMS/bitácora operativa y convertirlo en una extracción canónica estructurada, fiel al documento fuente y útil para persistencia y razonamiento posterior.
 
-El objetivo no es preservar una plantilla exacta, sino extraer significado operativo de forma consistente.
+Debes extraer, no evaluar.
 
 ---
 
-## 2. Principio general
+## 2. Objetivo
 
-Los SMS deben tratarse como **documentos operativos semi-estructurados**.
+Debes producir una propuesta canónica compatible con el esquema del sistema, incluyendo:
 
-El sistema debe:
+- `incident_case`
+- `timeline_entries`
+- `troubleshooting_actions`
+- `extraction_metadata`
+
+La propuesta debe:
+
+- ser fiel al SMS fuente
+- no inventar información
+- conservar trazabilidad operativa
+- capturar suficiente cobertura cuando exista una bitácora rica
+
+---
+
+## 3. Principio general
+
+Trata el SMS como un documento operativo semi-estructurado.
+
+Debes:
+
 1. leer el documento completo
-2. identificar secciones y patrones útiles
-3. extraer información al esquema canónico
-4. validar consistencia
-5. persistir sin inventar información no respaldada
+2. identificar bloques útiles
+3. extraer datos al esquema canónico
+4. clasificar con prudencia
+5. preservar la cronología operativa real
+
+No debes reducir agresivamente una bitácora extensa a un resumen mínimo si eso hace perder trazabilidad.
 
 ---
 
-## 3. Esquema canónico objetivo
+## 4. Salida esperada
 
-El extractor debe intentar poblar, cuando sea posible, los siguientes conceptos:
+Debes devolver únicamente JSON válido con esta estructura conceptual:
 
-### IncidentCase
-- case_id
-- source_type
-- header
-- failure_text
-- impact_text
-- solution_time
-- status
-- pending_rca
-- raw_sms
-- probable_cause_text
-- resolution_summary
-- component_types
-- components_affected
-- services_affected
-- symptoms
-- teams_involved
-- tickets
-- tags
-- parser_output_json
-- enrichment_json
+- `incident_case`
+- `timeline_entries`
+- `troubleshooting_actions`
+- `extraction_metadata`
 
-### IncidentTimelineEntry
-- case_id
-- event_time
-- event_text
-- event_type
-- team
-- action_detected
-- observation_detected
-- sequence_order
-
-### TroubleshootingAction
-- case_id
-- action_text
-- action_type
-- action_role
-- target_component
-- outcome
-- was_effective
-- sequence_order
+No devuelvas markdown, comentarios ni texto fuera del JSON.
 
 ---
 
-## 4. Etiquetas o secciones que suelen aparecer
-
-Estas etiquetas suelen mantenerse, aunque pueden variar ligeramente en redacción, orden o estilo:
-
-- FALLA
-- IMPACTO
-- SOLUCIONADO
-- INCIDENCIA
-- AFECTACIÓN
-- ACCIONES
-- CAUSA
-- SOLUCIÓN
-- TICKET
-- FECHA/H.Inicio
-- FECHA/H.Fin
-- HORA DE SOLUCIÓN
-
-Estas etiquetas deben tratarse como **indicadores útiles**, no como dependencias rígidas.
-
----
-
-## 5. Reglas de extracción generales
+## 5. Reglas sobre `incident_case`
 
 ### 5.1 Header
-- El encabezado suele corresponder a la primera línea significativa del mensaje.
-- Puede incluir nombres de área, sistemas, ticket o título operativo.
-- Debe conservarse tal como aparece, salvo limpieza básica de espacios.
+- `header` suele corresponder a la primera línea significativa del SMS.
+- Debe conservarse de forma fiel, con limpieza básica de espacios.
 
-### 5.2 Tickets
-- Extraer identificadores como:
-  - INC...
-  - REQ...
-  - TAS...
-  - otros patrones operativos equivalentes
-- Un mensaje puede contener múltiples tickets o referencias relacionadas.
-- El ticket principal del incidente debe priorizarse cuando sea evidente.
+### 5.2 Failure
+- `failure_text` debe representar el problema principal descrito.
+- Puede venir bajo `FALLA`, `INCIDENCIA` o redacción equivalente.
+- Debe sintetizar el problema sin inventar información.
 
-### 5.3 Failure / Incidencia principal
-- `failure_text` debe representar el problema principal descrito en el SMS.
-- Puede venir bajo:
-  - FALLA
-  - INCIDENCIA
-  - o una redacción libre equivalente
-- Si hay varias frases, se debe sintetizar el problema principal sin inventar información.
+### 5.3 Impact
+- `impact_text` debe representar la afectación operativa real.
+- Puede venir bajo `IMPACTO`, `AFECTACIÓN` o equivalente.
+- Debe priorizar accesos, transacciones, servicios, portales, usuarios o impacto masivo.
 
-### 5.4 Impact
-- `impact_text` debe representar la afectación operativa descrita.
-- Puede venir bajo:
-  - IMPACTO
-  - AFECTACIÓN
-  - o texto equivalente
-- Debe priorizarse el impacto en usuarios, transacciones, accesos, servicios o portales.
+### 5.4 Cause
+- `probable_cause_text` solo debe llenarse si existe respaldo suficiente en el SMS.
+- Si la causa no está clara, dejar vacío o null.
 
-### 5.5 Cause
-- `probable_cause_text` solo debe poblarse si el SMS aporta evidencia suficiente.
-- Puede venir bajo:
-  - CAUSA
-  - diagnóstico técnico explícito
-  - validación del equipo técnico
-- Si la causa no está clara, no inventarla.
+### 5.5 Start Time
+- `start_time` representa la fecha/hora real de inicio del incidente.
+- Debe extraerse cuando el SMS contenga un campo explícito y suficientemente claro de inicio, por ejemplo:
+  - `FECHA/H.Inicio`
+  - `H.Inicio`
+  - `Fecha de inicio`
+  - u otra variante equivalente claramente asociada al inicio del evento
+- Prioriza evidencia literal del SMS por encima de inferencias desde el timeline.
+- Si el SMS contiene una fecha/hora explícita de inicio, debes poblar `start_time`.
+- Si no existe un campo explícito equivalente, dejar vacío o null.
+- No inventar `start_time` solo por tomar la primera hora de la bitácora si el documento no la presenta como hora de inicio del incidente.
 
-### 5.6 Solution / Resolution
-- `resolution_summary` debe representar cómo terminó el incidente.
-- Puede venir bajo:
-  - SOLUCIÓN
-  - SOLUCIONADO
-  - o frases equivalentes de restablecimiento/cierre
-- Si no hubo acción técnica explícita, debe indicarse eso de forma fiel.
+### 5.6 Solution Time
+- `solution_time` representa la fecha/hora real de solución o fin operativo del incidente.
+- Debe extraerse cuando el SMS contenga un campo explícito y suficientemente claro de fin o solución, por ejemplo:
+  - `FECHA/H.Fin`
+  - `H.Fin`
+  - `Hora de solución`
+  - `Fecha de solución`
+  - u otra variante equivalente claramente asociada al cierre o solución del evento
+- Por regla general, la fecha/hora de solución suele aparecer hacia el final del SMS.
+- Si el SMS contiene una fecha/hora explícita de fin o solución, debes poblar `solution_time`.
+- Prioriza evidencia literal del SMS por encima de inferencias desde validaciones tardías o confirmaciones posteriores.
+- No inventar `solution_time` a partir de la última línea del timeline si no existe campo explícito suficientemente claro.
+- Si no existe un campo explícito equivalente, dejar vacío o null.
 
----
+### 5.7 Resolution Summary
+- `resolution_summary` debe reflejar cómo terminó el incidente.
+- Puede venir bajo `SOLUCIÓN`, `SOLUCIONADO` o frases equivalentes.
+- No inventar remediación si el SMS no la describe.
 
-## 6. Reglas sobre status y pending_rca
+### 5.8 Status
+- En bitácoras ya cerradas o solucionadas, normalmente usar `closed`.
+- Si el SMS indica cierre o conformidad final, priorizar `closed`.
 
-### 6.1 status
-- El campo `status` representa el estado operativo del registro según el modelo vigente del sistema.
-- Mientras el modelo actual no cambie, se permite usar:
-  - `closed`
-  - `monitoring`
-  - `stabilized`
-  - `open`
-- En SMS bitácora ya cerrados/solucionados, normalmente el status sugerido será `closed`.
-
-### 6.2 pending_rca
-- Si el SMS menciona que el RCA está pendiente, o se deduce que falta análisis formal de causa raíz, usar:
-  - `pending_rca = true`
-- Si no hay evidencia de RCA pendiente, no asumir automáticamente que existe RCA.
-
-### 6.3 Regla aprobada del proyecto
-- Si el SMS contiene frases equivalentes a **“Se cierra SMS”**, el status sugerido es `closed`.
-- Si el SMS indica estabilidad pero deja RCA pendiente, también puede modelarse como `closed` con `pending_rca = true`.
+### 5.9 pending_rca
+- Usar `true` solo si el SMS indica explícitamente RCA pendiente o lo deja claro.
+- No asumir RCA pendiente sin evidencia.
 
 ---
 
-## 7. Reglas para IncidentTimelineEntry
+## 6. Reglas sobre `tickets` y `case_id`
 
-### 7.1 Qué representa
-Cada `IncidentTimelineEntry` representa un hito de la evolución temporal del incidente.
+### 6.1 Tickets
+- Extraer todos los tickets o identificadores relacionados que aparezcan explícitamente en el SMS.
+- `tickets` debe contener la lista completa de tickets válidos detectados.
 
-### 7.2 Qué debe incluir
-- hora o referencia temporal si existe
-- texto de la línea o hito
-- clasificación tentativa (`event_type`) si se puede inferir
-- equipo responsable o mencionado, si existe
-- orden secuencial
+### 6.2 Prefijos válidos
+Los tickets válidos deben comenzar con uno de estos prefijos:
 
-### 7.3 Cuándo crear timeline entries
-Crear entradas cuando existan:
-- líneas cronológicas con hora
-- pasos secuenciales
-- acciones narradas en orden temporal
-- bloque SOLUCIONADO o ACCIONES
-- lista operativa de revisión/desarrollo
+- `INC`
+- `REQ`
+- `TAS`
+- `CRQ`
 
-### 7.4 Qué no hacer
-No perder el texto original del hito.
-La clasificación debe complementar, no reemplazar, la evidencia textual.
-
----
-
-## 8. Reglas para TroubleshootingAction
-
-### 8.1 Qué representa
-`TroubleshootingAction` representa una **acción operativa ejecutada**, no cualquier línea del timeline.
-
-### 8.2 Solo convertir en action cuando haya acción explícita
-Ejemplos válidos:
-- se reporta a DBA
-- se apertura sala
-- se revisan logs
-- se deriva a otro equipo
-- se solicita rollback
-- se autoriza rollback
-- se ejecuta rollback
-- se mantiene en monitoreo
-- se cierra SMS
-- se finaliza sala
-
-### 8.3 No convertir automáticamente en action
-No convertir si la línea solo expresa:
-- síntoma
-- observación
-- confirmación de estado
-- diagnóstico sin acción
-- resultado pasivo
-
-### 8.4 action_type
-Describe qué se hizo.
-Ejemplos:
-- escalation
-- monitoring
-- derivation
-- rollback
-- validation
-- closure
-
-### 8.5 action_role
-Describe el papel operativo.
-Ejemplos:
-- coordination
-- monitoring
-- remediation
-- validation
-- administrative_closure
-
-### 8.6 was_effective
-- `true` solo si el SMS da evidencia de efectividad
-- `false` si hay evidencia de que no funcionó
-- `null` si no se puede afirmar
-
-### 8.7 Regla crítica
-Nunca asumir que una acción resolvió el incidente solo porque ocurrió antes del cierre.
-
----
-
-## 9. Regla crítica sobre remediación real
-
-Existen incidentes donde la bitácora no muestra una remediación técnica explícita.
-En esos casos, el sistema debe distinguir entre:
-
-- acción ejecutada
-- resultado observado
-- resolución o estabilización
+### 6.3 Regla crítica
+No considerar como ticket texto libre que solo coincida parcialmente con un prefijo.
 
 Ejemplo:
-- reportar a DBA
-- monitorear
-- derivar a otro equipo
-- esperar que la carga baje
-- confirmar estabilidad
+- `INCONVENIENTES` no es ticket
 
-Eso no implica automáticamente que hubo una acción correctiva efectiva.
+### 6.4 case_id
+- `case_id` debe resolverse únicamente a partir de tickets válidos presentes en el SMS.
+- `case_id` debe ser uno de los valores incluidos en `tickets`.
+
+### 6.5 Jerarquía para `case_id`
+Si existen múltiples tickets válidos, elegir `case_id` con esta prioridad:
+
+1. `INC...`
+2. `REQ...`
+3. `TAS...`
+4. `CRQ...`
+
+### 6.6 Qué no hacer
+No debes:
+
+- usar texto libre como `case_id`
+- usar palabras del header como `case_id`
+- fabricar ids artificiales
+- truncar tickets
+- inventar tickets
 
 ---
 
-## 10. Reglas de no inferencia
+## 7. Reglas sobre bitácora operativa
 
-El extractor/agente NO debe inventar:
+### 7.1 Qué es
+La bitácora operativa es el bloque del SMS que describe la evolución temporal del incidente.
 
-- causa raíz si no está respaldada
-- solución técnica si no está explícita
-- remediación efectiva si solo hubo coordinación o monitoreo
-- impacto adicional no mencionado
-- equipos no citados
-- tickets no presentes
-- componentes no sugeridos por evidencia razonable
+Suele aparecer después de encabezados como:
+
+- `ACCIONES:`
+- `SOLUCIONADO:`
+
+o encabezados equivalentes.
+
+### 7.2 Regla general
+Si existe una bitácora operativa explícita, debes usarla como fuente principal para construir:
+
+- `timeline_entries`
+- y, cuando corresponda, `troubleshooting_actions`
+
+### 7.3 Regla importante
+No toda hora presente en cualquier parte del SMS debe convertirse automáticamente en timeline.
+
+La regla aplica a las entradas que pertenecen al cuerpo de la bitácora operativa.
 
 ---
 
-## 11. Reglas de inferencia permitida
+## 8. Reglas para `timeline_entries`
+
+### 8.1 Qué representan
+Cada `timeline_entry` representa un hito cronológico de la evolución del incidente.
+
+### 8.2 Qué deben incluir
+Cuando exista evidencia, incluir:
+
+- `event_time`
+- `event_text`
+- `sequence_order`
+
+Y solo si hay respaldo suficiente:
+
+- `event_type`
+- `team`
+- `action_detected`
+- `observation_detected`
+
+### 8.3 Regla de cobertura
+Si la bitácora operativa contiene múltiples entradas cronológicas, debes preservar una cobertura razonablemente completa.
+
+Cada entrada de la bitácora que inicie con una hora debe tratarse como un candidato fuerte a `timeline_entry`.
+
+### 8.4 Qué no hacer
+No debes:
+
+- colapsar demasiados hitos en una sola entrada
+- resumir una bitácora extensa a solo apertura, rollback y cierre
+- omitir hitos intermedios importantes de coordinación, descarte, revisión, autorización, validación o conformidad
+
+---
+
+## 9. Reglas para `troubleshooting_actions`
+
+### 9.1 Qué representan
+`troubleshooting_actions` representa acciones operativas ejecutadas, no cualquier línea del timeline.
+
+### 9.2 Cuándo crear una acción
+Crear `troubleshooting_action` cuando exista una acción explícita, por ejemplo:
+
+- apertura de sala
+- revisión de logs
+- revisión de servidores o IPs
+- revisión de pases
+- solicitud de rollback
+- autorización de rollback
+- ejecución de rollback
+- validación de acceso
+- cierre de sala
+
+### 9.3 Regla de cobertura
+Si el SMS describe varias acciones técnicas relevantes, no debes reducir todo el troubleshooting a una sola acción final.
+
+Debes intentar capturar también:
+
+- acciones diagnósticas
+- acciones de descarte
+- acciones de verificación
+- acciones de validación
+- acciones de remediación
+
+### 9.4 action_type
+Describe qué se hizo.
+Ejemplos:
+- `coordination`
+- `monitoring`
+- `diagnostic`
+- `rollback`
+- `validation`
+- `closure`
+
+### 9.5 action_role
+Describe el papel operativo de la acción.
+Ejemplos:
+- `coordination`
+- `diagnostic`
+- `remediation`
+- `validation`
+- `administrative_closure`
+
+### 9.6 was_effective
+- `true` solo si el SMS demuestra efectividad
+- `false` solo si el SMS demuestra inefectividad
+- `null` si no hay evidencia suficiente
+
+---
+
+## 10. Reglas de clasificación
+
+### 10.1 Timeline vs troubleshooting
+- `timeline_entries` conserva la secuencia cronológica del incidente
+- `troubleshooting_actions` conserva acciones operativas explícitas
+
+Una misma línea puede aportar valor cronológico y también representar una acción, pero no debes duplicar innecesariamente si no aporta utilidad estructural.
+
+### 10.2 Clasificación prudente
+- revisión de logs, verificación, descarte, revisión técnica → tienden a diagnóstico
+- rollback, corrección, ejecución técnica → tienden a remediación
+- validación funcional o técnica posterior → tiende a validación
+
+Si no hay evidencia suficiente para clasificar con seguridad, deja el campo específico vacío o null.
+
+---
+
+## 11. Reglas de no invención
+
+No debes inventar:
+
+- causa raíz no respaldada
+- solución técnica no respaldada
+- remediación efectiva no demostrada
+- tickets inexistentes
+- equipos no mencionados
+- componentes no sugeridos por el SMS
+- timeline entries inexistentes
+- troubleshooting actions inexistentes
+
+---
+
+## 12. Reglas de inferencia permitida
 
 Se permite inferir con prudencia:
 
-- clasificación de un hito como timeline entry
-- clasificación de una línea como troubleshooting action
-- tipo de acción (`action_type`)
-- rol de la acción (`action_role`)
-- tags operativos razonables
-- componentes probables si el texto lo sugiere claramente
+- clasificación de un hito como `timeline_entry`
+- clasificación de una línea como `troubleshooting_action`
+- `action_type`
+- `action_role`
+- etiquetas razonables
+- componentes probables si el SMS lo sugiere claramente
 
 Toda inferencia debe:
+
 - ser consistente con el SMS
 - evitar contradicciones
-- marcarse como inferencia si el sistema lleva trazabilidad de confianza
+- no sobreinterpretar
+- dejar campos vacíos cuando la evidencia no alcance
 
 ---
 
-## 12. Preprocesamiento mínimo permitido
+## 13. Reglas sobre `extraction_metadata`
 
-Antes de la extracción semántica, se permite:
+Debes devolver metadata útil y no decorativa.
 
-- limpiar espacios
-- normalizar saltos de línea
-- detectar tickets
-- detectar horas y fechas
-- detectar IPs, dominios, URLs
-- detectar bloques por encabezados comunes
-- separar líneas cronológicas
+### 13.1 Campos esperados
+- `extractor_name`
+- `extractor_version`
+- `model_name`
+- `confidence_notes`
+- `warnings`
+- `missing_fields`
+- `inferred_fields`
 
-Esto no debe reemplazar la interpretación semántica.
+### 13.2 Reglas
+- `confidence_notes` debe reflejar por qué la extracción parece confiable
+- `warnings` debe reflejar riesgos reales
+- `missing_fields` debe reflejar ausencias reales
+- `inferred_fields` debe reflejar inferencias reales
 
----
-
-## 13. Seguridad y redacción
-
-Si el SMS o sus derivados fueran a salir a fuentes externas, se debe redactar información sensible como:
-
-- IPs
-- dominios internos
-- hostnames
-- correos
-- rutas internas
-- secretos
-- identificadores sensibles
-
-La extracción interna puede conservar evidencia original en `raw_sms`, pero la salida a terceros debe protegerla.
+No inventar metadata decorativa.
 
 ---
 
-## 14. Observaciones del proyecto ya aprobadas
+## 14. Regla operativa final
 
-### 14.1 Sobre status
-- Si el SMS incluye “Se cierra SMS” o equivalente, el status sugerido es `closed`.
-- Si indica estabilidad pero RCA pendiente, también se maneja como `closed` con `pending_rca = true`.
+Si el SMS contiene una bitácora rica, debes priorizar trazabilidad y cobertura estructural.
 
-### 14.2 Sobre timeline
-El modelo temporal debe representar la evolución de la bitácora en el tiempo.  
-Por eso se renombró a:
-- `IncidentTimelineEntryModel`
+Es preferible:
 
-### 14.3 Sobre troubleshooting actions
-`TroubleshootingActionModel` debe capturar acciones operativas reales y no copiar el timeline completo.
+- conservar más hitos reales
+- conservar más acciones reales
+- dejar algunos subcampos vacíos
 
----
-
-## 15. Ejemplos de interpretación
-
-### Caso donde sí hay remediación explícita
-- rollback autorizado
-- rollback ejecutado
-- validación posterior de acceso
-- conformidad del usuario
-
-Aquí sí puede existir:
-- `action_role = remediation`
-- `was_effective = true` para la acción correcta
-
-### Caso donde no hay remediación explícita
-- se reporta a DBA
-- se monitorea
-- la carga baja sola
-- se confirma estabilidad
-- RCA queda pendiente
-
-Aquí no debe inferirse una solución técnica directa si no está demostrada.
-
----
-
-## 16. Criterio de evolución
-
-Este documento puede crecer con:
-- nuevos formatos observados
-- nuevos ejemplos reales
-- nuevas reglas de clasificación
-- excepciones operativas detectadas
-- reglas específicas para agentes de extracción y validación
+que producir una salida breve pero pobre en información operativa.

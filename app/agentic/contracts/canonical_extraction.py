@@ -38,10 +38,13 @@ class CanonicalIncidentCaseData(BaseModel):
     Núcleo canónico del incidente extraído desde el SMS/documento.
     """
 
+    case_id: str | None = None
     source_type: str = Field(..., min_length=1)
     header: str | None = None
     failure_text: str = Field(..., min_length=1)
     impact_text: str | None = None
+    start_time: str | None = None
+    solution_time: str | None = None
     incident_status: str = Field(..., min_length=1)
     pending_rca: bool = True
     raw_sms: str = Field(..., min_length=1)

@@ -1,7 +1,8 @@
-import re
 from dataclasses import dataclass
+from datetime import datetime
 
 from app.api.schemas.incident_requests import IngestSmsRequest
+from app.core.temporal import extract_explicit_sms_datetime
 from app.domain.enums import IncidentStatus, SourceType
 
 
@@ -15,6 +16,7 @@ class ParsedSmsBitacora:
     header: str | None
     failure_text: str
     impact_text: str | None
+    start_time: datetime | None
     incident_status: str
     pending_rca: bool
     raw_sms: str
@@ -65,12 +67,17 @@ class SmsBitacoraParser:
         header = self._extract_header(raw_text)
         failure_text = self._extract_failure_text(raw_text)
         impact_text = self._extract_impact_text(raw_text)
+        start_time = extract_explicit_sms_datetime(
+            raw_text,
+            labels=("FECHA/H.INICIO", "FECHA/H. INICIO", "HORA DE INICIO"),
+        )
 
         return ParsedSmsBitacora(
             source_type=SourceType.SMS_BITACORA.value,
             header=header,
             failure_text=failure_text,
             impact_text=impact_text,
+            start_time=start_time,
             incident_status=IncidentStatus.CLOSED.value,
             pending_rca=True,
             raw_sms=raw_text,
@@ -84,6 +91,7 @@ class SmsBitacoraParser:
                 "header_detected": header is not None,
                 "failure_detected": bool(failure_text),
                 "impact_detected": impact_text is not None,
+                "start_time_detected": start_time is not None,
             },
             enrichment_json={},
         )

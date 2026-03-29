@@ -1,0 +1,170 @@
+from __future__ import annotations
+
+from dataclasses import dataclass
+from typing import Any
+
+from sqlalchemy.orm import Session
+
+from app.agentic.orchestrator.orchestration_models import (
+    CanonicalExtractionOrchestrationResult,
+)
+from app.api.schemas.incident_requests import IngestSmsRequest
+from app.services.canonical_extraction_persistence_service import (
+    CanonicalExtractionPersistenceService,
+)
+from app.services.mappers.canonical_extraction_mapper import (
+    CanonicalExtractionMapper,
+)
+
+
+@dataclass(slots=True)
+class AgenticIncidentIngestionResult:
+    case_id: str
+    incident_status: str
+    parsed_ok: bool
+    indexed: bool
+    judge_decision: str
+    timeline_entries_saved: int
+    troubleshooting_actions_saved: int
+
+
+class AgenticIncidentIngestionService:
+    """
+    Orquesta la ingesta de SMS usando el subsistema agentic y
+    persiste el resultado canónico aceptado en una sola transacción.
+    """
+
+    def __init__(
+        self,
+        db_session: Session,
+        orchestrator: Any,
+    ) -> None:
+        self._db = db_session
+        self._orchestrator = orchestrator
+        self._persistence_service = CanonicalExtractionPersistenceService(
+            db_session=db_session,
+            mapper=CanonicalExtractionMapper(),
+        )
+
+    def ingest_sms(self, payload: IngestSmsRequest) -> AgenticIncidentIngestionResult:
+        print(
+            "[AGENTIC SERVICE] ingest_sms payload recibido:",
+            payload.model_dump(mode="json"),
+        )
+        orchestration_result = self._run_orchestrator(payload)
+        print(
+            "[AGENTIC SERVICE] resultado del orquestador:",
+            orchestration_result.model_dump(mode="json"),
+        )
+
+        accepted_result = orchestration_result.accepted_result
+        judge_evaluation = orchestration_result.judge_evaluation
+        trace = orchestration_result.trace
+
+        print(
+            "[AGENTIC SERVICE] accepted_result:",
+            self._to_jsonable(accepted_result),
+        )
+        print(
+            "[AGENTIC SERVICE] judge_evaluation:",
+            self._to_jsonable(judge_evaluation),
+        )
+        print(
+            "[AGENTIC SERVICE] trace:",
+            self._to_jsonable(trace),
+        )
+
+        if accepted_result is None:
+            print(
+                "[ERROR] [AGENTIC SERVICE] accepted_result es None; no hay resultado para persistir."
+            )
+            raise ValueError(
+                "El subsistema agentic no devolvió un resultado aceptado para persistir."
+            )
+
+        judge_decision = self._extract_judge_decision(judge_evaluation)
+        print("[AGENTIC SERVICE] judge_decision:", judge_decision)
+
+        try:
+            persistence_result = self._persistence_service.save_accepted_result(
+                extraction=accepted_result,
+                judge_decision=judge_decision,
+                judge_evaluation=self._to_jsonable(judge_evaluation),
+                trace=self._to_jsonable(trace),
+            )
+        except Exception as exc:
+            print("[ERROR] [AGENTIC SERVICE] save_accepted_result falló:", str(exc))
+            raise
+
+        result = AgenticIncidentIngestionResult(
+            case_id=persistence_result.case_id,
+            incident_status=persistence_result.incident_status,
+            parsed_ok=True,
+            indexed=True,
+            judge_decision=judge_decision,
+            timeline_entries_saved=persistence_result.timeline_entries_saved,
+            troubleshooting_actions_saved=persistence_result.troubleshooting_actions_saved,
+        )
+        print(
+            "[AGENTIC SERVICE] resultado final de ingest_sms:",
+            result,
+        )
+        return result
+
+    def _run_orchestrator(
+        self,
+        payload: IngestSmsRequest,
+    ) -> CanonicalExtractionOrchestrationResult:
+        """
+        Ejecuta el orquestador real del proyecto.
+        El contrato actual del request expone `raw_text`, que es el SMS fuente.
+        """
+        print("[ORCHESTRATOR] texto enviado al orquestador:", payload.raw_text)
+        try:
+            result = self._orchestrator.extract(payload.raw_text)
+        except Exception as exc:
+            print("[ERROR] [ORCHESTRATOR] Falló extract():", str(exc))
+            raise
+
+        print(
+            "[ORCHESTRATOR] resultado bruto devuelto por el orquestador:",
+            result.model_dump(mode="json"),
+        )
+        return result
+
+    def _extract_judge_decision(self, judge_evaluation: Any) -> str:
+        """
+        Resuelve la decisión del juez desde el objeto retornado por el orquestador.
+        """
+        decision = getattr(judge_evaluation, "decision", None)
+
+        if isinstance(decision, str) and decision.strip():
+            normalized = decision.strip().lower()
+
+            if normalized in {"accepted", "accepted_with_observations"}:
+                return normalized
+
+            return normalized
+
+        if isinstance(judge_evaluation, dict):
+            raw_decision = judge_evaluation.get("decision")
+            if isinstance(raw_decision, str) and raw_decision.strip():
+                return raw_decision.strip().lower()
+
+        print(
+            "[ERROR] [AGENTIC SERVICE] No se pudo resolver judge_decision desde judge_evaluation:",
+            self._to_jsonable(judge_evaluation),
+        )
+        raise ValueError("No se pudo resolver judge_decision desde judge_evaluation.")
+
+    def _to_jsonable(self, value: Any) -> Any:
+        """
+        Convierte objetos Pydantic del subsistema agentic a payload serializable.
+        """
+        if value is None:
+            return None
+
+        if hasattr(value, "model_dump"):
+            return value.model_dump(mode="json")
+
+        return value

@@ -17,12 +17,25 @@ class IncidentCaseRepository:
     def __init__(self, db_session: Session) -> None:
         self._db = db_session
 
-    def create(self, incident_case: IncidentCaseModel) -> IncidentCaseModel:
+    def add(self, incident_case: IncidentCaseModel) -> IncidentCaseModel:
         """
-        Persiste un nuevo incidente.
+        Agrega un nuevo incidente a la sesión activa sin cerrar la transacción.
         """
+        print(
+            "[REPOSITORY] Agregando IncidentCaseModel:",
+            {
+                "case_id": incident_case.case_id,
+                "source_type": incident_case.source_type,
+                "status": incident_case.status,
+                "header": incident_case.header,
+            },
+        )
         self._db.add(incident_case)
-        self._db.commit()
+        self._db.flush()
+        print(
+            "[REPOSITORY] flush() exitoso para IncidentCaseModel:",
+            {"case_id": incident_case.case_id},
+        )
         self._db.refresh(incident_case)
         return incident_case
 
@@ -67,6 +80,6 @@ class IncidentCaseRepository:
             if hasattr(incident_case, field_name):
                 setattr(incident_case, field_name, field_value)
 
-        self._db.commit()
+        self._db.flush()
         self._db.refresh(incident_case)
         return incident_case

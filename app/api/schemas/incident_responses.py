@@ -1,3 +1,5 @@
+from datetime import datetime
+
 from pydantic import BaseModel
 
 from app.domain.enums import IngestionStatus, IncidentStatus
@@ -29,6 +31,7 @@ class ParserOutputResponse(BaseModel):
     header_detected: bool | None = None
     failure_detected: bool | None = None
     impact_detected: bool | None = None
+    start_time_detected: bool | None = None
 
 
 class IncidentCaseResponse(BaseModel):
@@ -41,6 +44,7 @@ class IncidentCaseResponse(BaseModel):
     header: str | None
     failure_text: str
     impact_text: str | None
+    start_time: datetime | None
     incident_status: IncidentStatus
     pending_rca: bool
     raw_sms: str | None
@@ -55,6 +59,7 @@ class IncidentCaseSummaryResponse(BaseModel):
     case_id: str
     source_type: str
     header: str | None
+    start_time: datetime | None
     incident_status: IncidentStatus
     pending_rca: bool
 

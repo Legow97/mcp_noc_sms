@@ -14,15 +14,35 @@ class IncidentTimelineEntryRepository:
     def __init__(self, db_session: Session) -> None:
         self._db = db_session
 
-    def bulk_create(
+    def add_many(
         self,
         entries: list[IncidentTimelineEntryModel],
     ) -> list[IncidentTimelineEntryModel]:
         """
-        Persiste múltiples entradas de timeline en una sola operación.
+        Agrega múltiples entradas de timeline a la sesión activa sin cerrar la transacción.
         """
+        print(
+            "[REPOSITORY] Agregando timeline entries:",
+            {
+                "count": len(entries),
+                "items": [
+                    {
+                        "case_id": entry.case_id,
+                        "sequence_order": entry.sequence_order,
+                        "event_time": entry.event_time,
+                        "event_type": entry.event_type,
+                        "event_text": entry.event_text[:160],
+                    }
+                    for entry in entries
+                ],
+            },
+        )
         self._db.add_all(entries)
-        self._db.commit()
+        self._db.flush()
+        print(
+            "[REPOSITORY] flush() exitoso para timeline entries:",
+            {"count": len(entries)},
+        )
 
         for entry in entries:
             self._db.refresh(entry)

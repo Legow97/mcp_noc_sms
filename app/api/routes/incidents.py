@@ -11,6 +11,7 @@ from app.api.schemas.incident_responses import (
     ParserOutputResponse,
     TroubleshootingActionResponse,
 )
+from app.agentic.orchestrator.factory import build_sms_orchestrator
 from app.db.repositories.incident_case_repository import IncidentCaseRepository
 from app.db.repositories.incident_timeline_entry_repository import (
     IncidentTimelineEntryRepository,
@@ -19,8 +20,9 @@ from app.db.repositories.troubleshooting_action_repository import (
     TroubleshootingActionRepository,
 )
 from app.domain.enums import IngestionStatus, IncidentStatus
-from app.services.incident_ingestion_service import IncidentIngestionService
-
+from app.services.agentic_incident_ingestion_service import (
+    AgenticIncidentIngestionService,
+)
 
 router = APIRouter(
     prefix="/api/v1/incidents",
@@ -49,19 +51,41 @@ def ingest_sms(
     db: Session = Depends(db_session_dependency),
 ) -> IngestSmsResponse:
     """
-    Endpoint inicial de ingesta de SMS.
-
-    La lógica de aplicación se delega al servicio de ingesta.
+    Endpoint de ingesta de SMS usando el subsistema agentic
+    y persistencia canónica.
     """
-    ingestion_service = IncidentIngestionService(db)
-    persisted_case = ingestion_service.ingest_sms(payload)
+    print(
+        "[INGEST ENDPOINT] Payload recibido:",
+        payload.model_dump(mode="json"),
+    )
+
+    orchestrator = build_sms_orchestrator()
+    ingestion_service = AgenticIncidentIngestionService(
+        db_session=db,
+        orchestrator=orchestrator,
+    )
+
+    try:
+        result = ingestion_service.ingest_sms(payload)
+    except ValueError as exc:
+        print("[ERROR] [INGEST ENDPOINT] ValueError:", str(exc))
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail=str(exc),
+        ) from exc
+    except Exception as exc:
+        print("[ERROR] [INGEST ENDPOINT] Unexpected exception:", str(exc))
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Unexpected error during agentic incident ingestion.",
+        )
 
     return IngestSmsResponse(
         ingestion_status=IngestionStatus.ACCEPTED,
-        incident_status=IncidentStatus.CLOSED,
-        case_id=persisted_case.case_id,
-        parsed_ok=False,
-        indexed=False,
+        incident_status=IncidentStatus(result.incident_status),
+        case_id=result.case_id,
+        parsed_ok=result.parsed_ok,
+        indexed=result.indexed,
     )
 
 
@@ -87,18 +111,19 @@ def get_incident_by_case_id(
         )
 
     return IncidentCaseResponse(
-    case_id=incident_case.case_id,
-    source_type=incident_case.source_type,
-    header=incident_case.header,
-    failure_text=incident_case.failure_text,
-    impact_text=incident_case.impact_text,
-    incident_status=IncidentStatus(incident_case.status),
-    pending_rca=incident_case.pending_rca,
-    raw_sms=incident_case.raw_sms,
-    parser_output=ParserOutputResponse(**incident_case.parser_output_json)
-    if incident_case.parser_output_json
-    else None,
-)
+        case_id=incident_case.case_id,
+        source_type=incident_case.source_type,
+        header=incident_case.header,
+        failure_text=incident_case.failure_text,
+        impact_text=incident_case.impact_text,
+        start_time=incident_case.start_time,
+        incident_status=IncidentStatus(incident_case.status),
+        pending_rca=incident_case.pending_rca,
+        raw_sms=incident_case.raw_sms,
+        parser_output=ParserOutputResponse(**incident_case.parser_output_json)
+        if incident_case.parser_output_json
+        else None,
+    )
 
 
 @router.get(
@@ -201,6 +226,7 @@ def list_incidents_by_status(
             case_id=incident.case_id,
             source_type=incident.source_type,
             header=incident.header,
+            start_time=incident.start_time,
             incident_status=IncidentStatus(incident.status),
             pending_rca=incident.pending_rca,
         )

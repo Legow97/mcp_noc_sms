@@ -41,6 +41,7 @@ class IncidentCaseModel(Base):
     header: Mapped[str | None] = mapped_column(Text, nullable=True)
     failure_text: Mapped[str] = mapped_column(Text, nullable=False)
     impact_text: Mapped[str | None] = mapped_column(Text, nullable=True)
+    start_time: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     solution_time: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
     status: Mapped[str] = mapped_column(String(32), nullable=False, default="open")
