@@ -38,7 +38,6 @@ HORA DE SOLUCIÓN: 09/02/2026 08:05 hrs.
     "failure_text": "Evento de carga en BD XXXXXXXX 09/02/2026 07:45 hrs.",
     "impact_text": "Errores técnicos en los microservicios del APP XXXX y disminución de transacciones en XXX Postpago.",
     "incident_status": "closed",
-    "pending_rca": true,
     "raw_sms": "NOC DATACENTER-TI ...",
     "probable_cause_text": null,
     "resolution_summary": null,
@@ -54,19 +53,11 @@ HORA DE SOLUCIÓN: 09/02/2026 08:05 hrs.
     {
       "event_time": "07:55 hrs",
       "event_text": "Se reporta a Soporte DBA con ticket INC000000123456.",
-      "event_type": "action",
-      "team": "Soporte DBA",
-      "action_detected": "report_to_dba",
-      "observation_detected": null,
       "sequence_order": 1
     },
     {
       "event_time": "08:40 hrs",
       "event_text": "NOC TI confirma estabilidad de los servicios. Se cierra SMS.",
-      "event_type": "closure",
-      "team": "NOC TI",
-      "action_detected": null,
-      "observation_detected": "service_stability_confirmed",
       "sequence_order": 2
     }
   ],
@@ -76,8 +67,6 @@ HORA DE SOLUCIÓN: 09/02/2026 08:05 hrs.
       "action_type": "escalation",
       "action_role": "coordination",
       "target_component": "database",
-      "outcome": null,
-      "was_effective": null,
       "sequence_order": 1
     }
   ],
@@ -88,7 +77,7 @@ HORA DE SOLUCIÓN: 09/02/2026 08:05 hrs.
     "confidence_notes": ["Extracción basada en etiquetas claras."],
     "warnings": ["No se identifica causa raíz explícita."],
     "missing_fields": ["probable_cause_text", "resolution_summary"],
-    "inferred_fields": ["incident_status", "pending_rca"]
+    "inferred_fields": ["incident_status"]
   }
 }
 """.strip()

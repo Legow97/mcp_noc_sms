@@ -12,10 +12,6 @@ class CanonicalTimelineEntryData(BaseModel):
 
     event_time: str | None = None
     event_text: str = Field(..., min_length=1)
-    event_type: str | None = None
-    team: str | None = None
-    action_detected: str | None = None
-    observation_detected: str | None = None
     sequence_order: int = Field(..., ge=1)
 
 
@@ -28,8 +24,6 @@ class CanonicalTroubleshootingActionData(BaseModel):
     action_type: str | None = None
     action_role: str | None = None
     target_component: str | None = None
-    outcome: str | None = None
-    was_effective: bool | None = None
     sequence_order: int = Field(..., ge=1)
 
 
@@ -46,7 +40,6 @@ class CanonicalIncidentCaseData(BaseModel):
     start_time: str | None = None
     solution_time: str | None = None
     incident_status: str = Field(..., min_length=1)
-    pending_rca: bool = True
     raw_sms: str = Field(..., min_length=1)
 
     probable_cause_text: str | None = None

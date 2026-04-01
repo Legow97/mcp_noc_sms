@@ -1,7 +1,7 @@
 from datetime import datetime, timezone
 from uuid import UUID, uuid4
 
-from sqlalchemy import Boolean, DateTime, ForeignKey, Integer, Text, String
+from sqlalchemy import DateTime, ForeignKey, Integer, Text, String
 from sqlalchemy.dialects.postgresql import JSONB, UUID as PGUUID
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 
@@ -45,7 +45,6 @@ class IncidentCaseModel(Base):
     solution_time: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
     status: Mapped[str] = mapped_column(String(32), nullable=False, default="open")
-    pending_rca: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
 
     raw_sms: Mapped[str | None] = mapped_column(Text, nullable=True)
     probable_cause_text: Mapped[str | None] = mapped_column(Text, nullable=True)
@@ -98,10 +97,6 @@ class IncidentTimelineEntryModel(Base):
 
     event_time: Mapped[str | None] = mapped_column(String(16), nullable=True)
     event_text: Mapped[str] = mapped_column(Text, nullable=False)
-    event_type: Mapped[str | None] = mapped_column(String(32), nullable=True)
-    team: Mapped[str | None] = mapped_column(String(128), nullable=True)
-    action_detected: Mapped[str | None] = mapped_column(String(128), nullable=True)
-    observation_detected: Mapped[str | None] = mapped_column(String(128), nullable=True)
 
     sequence_order: Mapped[int] = mapped_column(Integer, nullable=False)
 
@@ -141,8 +136,6 @@ class TroubleshootingActionModel(Base):
     action_type: Mapped[str | None] = mapped_column(String(64), nullable=True)
     action_role: Mapped[str | None] = mapped_column(String(64), nullable=True)
     target_component: Mapped[str | None] = mapped_column(String(128), nullable=True)
-    outcome: Mapped[str | None] = mapped_column(String(64), nullable=True)
-    was_effective: Mapped[bool | None] = mapped_column(Boolean, nullable=True)
 
     sequence_order: Mapped[int] = mapped_column(Integer, nullable=False)
 

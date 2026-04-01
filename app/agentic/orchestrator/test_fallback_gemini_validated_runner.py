@@ -38,7 +38,6 @@ HORA DE SOLUCIÓN: 09/02/2026 08:05 hrs.
     "failure_text": "Evento de carga en BD XXXXXXXX 09/02/2026 07:45 hrs.",
     "impact_text": "Errores técnicos en los microservicios del APP XXXX y disminución de transacciones en XXX Postpago.",
     "incident_status": "closed",
-    "pending_rca": true,
     "raw_sms": "NOC DATACENTER-TI ...",
     "probable_cause_text": "Sobrecarga en base de datos",
     "resolution_summary": "DBA resolvió el problema",
@@ -54,10 +53,6 @@ HORA DE SOLUCIÓN: 09/02/2026 08:05 hrs.
     {
       "event_time": "07:55 hrs",
       "event_text": "Se reporta a Soporte DBA con ticket INC000000123456.",
-      "event_type": "action",
-      "team": "Soporte DBA",
-      "action_detected": "report_to_dba",
-      "observation_detected": null,
       "sequence_order": 1
     }
   ],
@@ -67,8 +62,6 @@ HORA DE SOLUCIÓN: 09/02/2026 08:05 hrs.
       "action_type": "remediation",
       "action_role": "remediation",
       "target_component": "database",
-      "outcome": "resolved",
-      "was_effective": true,
       "sequence_order": 1
     }
   ],
@@ -120,7 +113,6 @@ También debe incorporar el hito explícito de las 08:05 hrs como hora de soluci
                     "failure_text": {"type": "STRING"},
                     "impact_text": {"type": "STRING"},
                     "incident_status": {"type": "STRING"},
-                    "pending_rca": {"type": "BOOLEAN"},
                     "raw_sms": {"type": "STRING"},
                     "probable_cause_text": {"type": "STRING"},
                     "resolution_summary": {"type": "STRING"},
@@ -136,7 +128,6 @@ También debe incorporar el hito explícito de las 08:05 hrs como hora de soluci
                     "source_type",
                     "failure_text",
                     "incident_status",
-                    "pending_rca",
                     "raw_sms",
                     "component_types",
                     "components_affected",
@@ -154,10 +145,6 @@ También debe incorporar el hito explícito de las 08:05 hrs como hora de soluci
                     "properties": {
                         "event_time": {"type": "STRING"},
                         "event_text": {"type": "STRING"},
-                        "event_type": {"type": "STRING"},
-                        "team": {"type": "STRING"},
-                        "action_detected": {"type": "STRING"},
-                        "observation_detected": {"type": "STRING"},
                         "sequence_order": {"type": "INTEGER"}
                     },
                     "required": ["event_text", "sequence_order"]
@@ -172,8 +159,6 @@ También debe incorporar el hito explícito de las 08:05 hrs como hora de soluci
                         "action_type": {"type": "STRING"},
                         "action_role": {"type": "STRING"},
                         "target_component": {"type": "STRING"},
-                        "outcome": {"type": "STRING"},
-                        "was_effective": {"type": "BOOLEAN"},
                         "sequence_order": {"type": "INTEGER"}
                     },
                     "required": ["action_text", "sequence_order"]

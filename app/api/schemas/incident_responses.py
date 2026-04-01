@@ -46,7 +46,6 @@ class IncidentCaseResponse(BaseModel):
     impact_text: str | None
     start_time: datetime | None
     incident_status: IncidentStatus
-    pending_rca: bool
     raw_sms: str | None
     parser_output: ParserOutputResponse | None = None
 
@@ -61,7 +60,6 @@ class IncidentCaseSummaryResponse(BaseModel):
     header: str | None
     start_time: datetime | None
     incident_status: IncidentStatus
-    pending_rca: bool
 
 
 class IncidentTimelineEntryResponse(BaseModel):
@@ -73,10 +71,6 @@ class IncidentTimelineEntryResponse(BaseModel):
     case_id: str
     event_time: str | None
     event_text: str
-    event_type: str | None
-    team: str | None
-    action_detected: str | None
-    observation_detected: str | None
     sequence_order: int
 
 
@@ -91,6 +85,4 @@ class TroubleshootingActionResponse(BaseModel):
     action_type: str | None
     action_role: str | None
     target_component: str | None
-    outcome: str | None
-    was_effective: bool | None
     sequence_order: int

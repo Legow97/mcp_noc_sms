@@ -2,6 +2,7 @@ from typing import Any
 
 from sqlalchemy.orm import Session
 
+from app.core.ingestion_trace import bind_case_id, log_ingestion_event
 from app.db.models import IncidentCaseModel
 
 
@@ -21,6 +22,16 @@ class IncidentCaseRepository:
         """
         Agrega un nuevo incidente a la sesión activa sin cerrar la transacción.
         """
+        bind_case_id(incident_case.case_id)
+        log_ingestion_event(
+            layer="repository",
+            event="incident_case_add_started",
+            payload={
+                "case_id": incident_case.case_id,
+                "status": incident_case.status,
+                "source_type": incident_case.source_type,
+            },
+        )
         print(
             "[REPOSITORY] Agregando IncidentCaseModel:",
             {
@@ -32,11 +43,21 @@ class IncidentCaseRepository:
         )
         self._db.add(incident_case)
         self._db.flush()
+        log_ingestion_event(
+            layer="repository",
+            event="incident_case_flush_completed",
+            payload={"case_id": incident_case.case_id},
+        )
         print(
             "[REPOSITORY] flush() exitoso para IncidentCaseModel:",
             {"case_id": incident_case.case_id},
         )
         self._db.refresh(incident_case)
+        log_ingestion_event(
+            layer="repository",
+            event="incident_case_refresh_completed",
+            payload={"case_id": incident_case.case_id},
+        )
         return incident_case
 
     def get_by_case_id(self, case_id: str) -> IncidentCaseModel | None:

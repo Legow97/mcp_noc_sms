@@ -24,7 +24,6 @@ def build_extraction(
             failure_text="FAILURE",
             impact_text="IMPACT",
             incident_status="closed",
-            pending_rca=True,
             raw_sms="REQ0000000XXX1 TAS0000000XXXX1 INCONVENIENTES",
             tickets=tickets or [],
         ),

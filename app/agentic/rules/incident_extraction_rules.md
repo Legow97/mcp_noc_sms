@@ -112,10 +112,6 @@ No devuelvas markdown, comentarios ni texto fuera del JSON.
 - En bitácoras ya cerradas o solucionadas, normalmente usar `closed`.
 - Si el SMS indica cierre o conformidad final, priorizar `closed`.
 
-### 5.9 pending_rca
-- Usar `true` solo si el SMS indica explícitamente RCA pendiente o lo deja claro.
-- No asumir RCA pendiente sin evidencia.
-
 ---
 
 ## 6. Reglas sobre `tickets` y `case_id`
@@ -198,13 +194,6 @@ Cuando exista evidencia, incluir:
 - `event_text`
 - `sequence_order`
 
-Y solo si hay respaldo suficiente:
-
-- `event_type`
-- `team`
-- `action_detected`
-- `observation_detected`
-
 ### 8.3 Regla de cobertura
 Si la bitácora operativa contiene múltiples entradas cronológicas, debes preservar una cobertura razonablemente completa.
 
@@ -266,11 +255,6 @@ Ejemplos:
 - `remediation`
 - `validation`
 - `administrative_closure`
-
-### 9.6 was_effective
-- `true` solo si el SMS demuestra efectividad
-- `false` solo si el SMS demuestra inefectividad
-- `null` si no hay evidencia suficiente
 
 ---
 

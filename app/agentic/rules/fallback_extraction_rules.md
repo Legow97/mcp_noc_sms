@@ -200,7 +200,6 @@ Debes reconstruir `incident_case` con alta fidelidad al documento fuente.
 - `impact_text`
 - `start_time`
 - `incident_status`
-- `pending_rca`
 - `probable_cause_text`
 - `resolution_summary`
 - `tickets`
@@ -294,13 +293,6 @@ Debes conservar, cuando exista evidencia:
 - `event_time`
 - `event_text`
 - `sequence_order`
-
-Y solo completar si hay respaldo:
-
-- `event_type`
-- `team`
-- `action_detected`
-- `observation_detected`
 
 ### 12.6 Qué no debes hacer con timeline
 

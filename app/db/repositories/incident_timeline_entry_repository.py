@@ -30,7 +30,6 @@ class IncidentTimelineEntryRepository:
                         "case_id": entry.case_id,
                         "sequence_order": entry.sequence_order,
                         "event_time": entry.event_time,
-                        "event_type": entry.event_type,
                         "event_text": entry.event_text[:160],
                     }
                     for entry in entries

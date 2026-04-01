@@ -4,34 +4,28 @@
 
 Este documento define las reglas del **juez semántico** del subsistema **Canonical Extraction Service**.
 
-El juez no extrae información desde cero.  
-Su función es **evaluar** una propuesta de extracción canónica generada por:
-
-- el extractor principal
-- o el extractor fallback
-
-y decidir si esa propuesta:
+El juez no extrae información. Su función es **evaluar** una propuesta de extracción canónica generada por el extractor principal o el fallback y decidir si esa propuesta:
 
 - puede aceptarse
 - puede aceptarse con observaciones
 - debe rechazarse
 
-Además, el juez debe producir una evaluación estructurada con:
+Además, debe producir una evaluación estructurada con:
 
-- decisión
-- puntuación
-- desglose por criterios
-- errores críticos
-- fortalezas
-- problemas detectados
-- acciones de mejora
-- feedback detallado y explícito
+- `decision`
+- `score`
+- `score_breakdown`
+- `critical_issues`
+- `strengths`
+- `issues`
+- `improvement_actions`
+- `feedback`
 
 ---
 
 ## 2. Principio general
 
-El juez debe comportarse como un **evaluador riguroso, conservador y trazable**.
+El juez debe comportarse como un **evaluador riguroso, conservador, trazable y estricto con omisiones**.
 
 Debe comparar:
 
@@ -44,18 +38,18 @@ y determinar si la propuesta es:
 - estructuralmente correcta
 - semánticamente prudente
 - suficientemente completa
-- útil para persistencia y posterior razonamiento
+- útil para persistencia y razonamiento posterior
 
-El juez **no debe inventar información nueva** para “arreglar” la propuesta.
+El juez **no debe inventar información** para corregir la propuesta.  
 Debe evaluar lo recibido.
 
 ---
 
-## 3. Entrada evaluada por el juez
+## 3. Entrada evaluada
 
 El juez recibe:
 
-- el documento fuente (SMS/bitácora)
+- el documento fuente
 - una propuesta de extracción canónica
 
 La propuesta suele contener:
@@ -67,9 +61,9 @@ La propuesta suele contener:
 
 ---
 
-## 4. Salida esperada del juez
+## 4. Salida esperada
 
-La salida del juez debe tener estructura JSON compatible con este formato conceptual:
+La salida del juez debe ser JSON compatible con esta estructura conceptual:
 
 ```json
 {
@@ -91,115 +85,110 @@ La salida del juez debe tener estructura JSON compatible con este formato concep
 
 ---
 
-## 5. Regla de decisión por score
+## 5. Decisión por score
 
 ### 5.1 Escala
-
 La puntuación final debe expresarse en escala **1 a 10**.
 
 ### 5.2 Umbrales
-
 - **9.0 a 10.0** → `accepted`
 - **8.0 a <9.0** → `accepted_with_observations`
 - **<8.0** → `rejected`
 
-### 5.3 Regla adicional
-
+### 5.3 Regla crítica
 Aunque el score parezca aceptable, si existe un **error crítico automático**, la decisión final debe ser:
 
 - `rejected`
+
+### 5.4 Reglas de techo de score
+Aunque no exista error crítico automático, el juez no debe asignar score alto ni decisión `accepted` si la propuesta presenta:
+
+- `case_id` vacío, nulo o inconsistente cuando el SMS contiene ticket explícito
+- campos explícitos del SMS dejados vacíos o `null` sin justificación
+- cobertura gravemente baja de `timeline_entries`
+- cobertura gravemente baja de `troubleshooting_actions`
+
+Aplicar estas restricciones:
+
+- si `case_id` viene vacío y el SMS sí tiene ticket explícito, la propuesta no puede ser `accepted`
+- si el SMS contiene bitácora multi-hito y la propuesta conserva muy pocos `timeline_entries`, la propuesta no puede recibir `coverage` alta
+- si el SMS contiene varias acciones técnicas y la propuesta conserva solo una acción o una fracción mínima del troubleshooting real, la propuesta no puede recibir `coverage` alta
 
 ---
 
 ## 6. Criterios de puntuación
 
-El juez debe puntuar la propuesta usando estos criterios ponderados.
-
 ### 6.1 Fidelidad al SMS fuente — 35%
+Evaluar si la propuesta:
 
-**Pregunta principal:**
-
-- ¿La extracción representa fielmente lo que el SMS dice?
-
-**Evaluar:**
-
-- si evita inventar causa, solución, remediación o equipos
-- si no contradice el documento
-- si no tergiversa el significado del incidente
-- si respeta el sentido operativo del caso
+- evita inventar causa, solución, remediación o equipos
+- no contradice el SMS
+- no tergiversa el significado operativo del caso
+- respeta el sentido operativo del incidente
 
 ### 6.2 Cobertura de campos relevantes — 20%
+Evaluar si la propuesta capturó los elementos importantes presentes en la fuente.
 
-**Pregunta principal:**
-
-- ¿La extracción capturó los elementos importantes que sí estaban presentes en el documento fuente?
-
-**Evaluar:**
+Revisar:
 
 - `header`
-- `falla/incidencia`
-- `impacto/afectación`
+- `failure_text`
+- `impact_text`
 - `tickets`
-- `causa explícita` si existe
-- `solución explícita` si existe
+- `case_id`
+- `start_time` si existe explícitamente
+- `solution_time` si existe explícitamente
+- `probable_cause_text` si existe causa explícita
+- `resolution_summary` si existe solución explícita
 - `timeline_entries` si existe bitácora operativa
-- `troubleshooting_actions` si existen acciones técnicas o diagnósticas claras
+- `troubleshooting_actions` si existen acciones técnicas claras
 
-#### Regla de severidad para cobertura
-El juez debe ser estricto con cobertura cuando el SMS contenga una bitácora operativa detallada.
+#### Regla de severidad para campos faltantes o null
+El juez debe ser estricto cuando el SMS aporta evidencia explícita y la propuesta deja el campo vacío, nulo o ausente.
 
-- Si el documento fuente contiene una secuencia operativa cronológica rica, no debe premiarse una propuesta que conserve solo una fracción pequeña de esa secuencia.
-- Si el documento fuente contiene múltiples hitos relevantes de diagnóstico, validación, coordinación, descarte, revisión técnica o remediación, la omisión de esos hitos debe penalizar fuertemente `coverage`.
-- Una propuesta no debe recibir `coverage` alta si resume en exceso una bitácora extensa y omite pasos intermedios importantes para entender cómo evolucionó el incidente.
+Penalizar fuertemente `coverage` cuando:
 
-#### Señales de cobertura insuficiente
-Penalizar cuando:
-- la cronología real del caso queda reducida de forma agresiva
-- faltan hitos importantes de la bitácora
-- faltan acciones diagnósticas explícitas
-- se conserva solo apertura, solución y cierre, omitiendo el proceso intermedio
+- un ticket explícito existe y `case_id` está vacío o ausente
+- el SMS tiene fecha/hora explícita de inicio y falta `start_time`
+- el SMS tiene fecha/hora explícita de fin/solución y falta `solution_time`
+- existe causa explícita y no se refleja
+- existe solución explícita y no se refleja
+- el SMS contiene una bitácora rica y la propuesta la resume en exceso
+- el SMS contiene varias acciones técnicas y la propuesta conserva muy pocas
+
+Los faltantes/null relevantes deben aparecer explícitamente en:
+
+- `issues`
+- `improvement_actions`
+- `feedback`
 
 ### 6.3 Calidad de clasificación estructural — 20%
+Evaluar:
 
-**Pregunta principal:**
-
-- ¿La propuesta clasifica bien la información dentro del esquema canónico?
-
-**Evaluar:**
-
-- separación entre `timeline_entries` y `troubleshooting_actions`
+- separación razonable entre `timeline_entries` y `troubleshooting_actions`
 - secuencia temporal
-- consistencia de `event_type`
 - consistencia de `action_type`
 - consistencia de `action_role`
+- calidad estructural general de la propuesta
 
 ### 6.4 Prudencia semántica — 15%
+Evaluar si la propuesta:
 
-**Pregunta principal:**
+- deja vacíos razonables cuando no hay evidencia
+- evita afirmar causa raíz no demostrada
+- evita afirmar remediación efectiva no demostrada
+- distingue evidencia de inferencia
+- no sobreinterpreta
 
-- ¿La extracción fue prudente y conservadora cuando había ambigüedad?
-
-**Evaluar:**
-
-- si deja campos vacíos cuando no hay evidencia
-- si evita afirmar causa raíz no demostrada
-- si evita afirmar remediación efectiva no demostrada
-- si marca inferencias razonables sin sobreinterpretar
-
-### 6.5 Calidad de metadata de extracción — 10%
-
-**Pregunta principal:**
-
-- ¿La metadata de extracción ayuda a entender la calidad de la propuesta?
-
-**Evaluar:**
+### 6.5 Calidad de metadata — 10%
+Evaluar:
 
 - `confidence_notes`
 - `warnings`
 - `missing_fields`
 - `inferred_fields`
 
-La metadata no debe parecer decorativa ni inventada sin sentido.
+La metadata debe ser útil, no decorativa.
 
 ---
 
@@ -219,9 +208,9 @@ El campo `score` debe reflejar el resultado ponderado final.
 
 ---
 
-## 8. Regla de error crítico automático
+## 8. Errores críticos automáticos
 
-Aunque el score general pueda parecer razonable, la propuesta debe ser `rejected` si existe al menos uno de estos errores críticos:
+La propuesta debe ser `rejected` si existe al menos uno de estos errores críticos:
 
 - causa raíz inventada o no respaldada
 - solución técnica inventada
@@ -232,6 +221,9 @@ Aunque el score general pueda parecer razonable, la propuesta debe ser `rejected
 - clasificación gravemente errónea que cambie el significado operativo del caso
 - marcar como `troubleshooting_action` algo que claramente no es acción y alterar el razonamiento posterior
 - afirmar cierre, estabilidad o resolución sin respaldo textual suficiente
+- `case_id` vacío, nulo o ausente cuando el SMS contiene un ticket explícito y claramente identificable
+- `case_id` inconsistente con los tickets explícitos del SMS
+- omitir completamente los tickets explícitos del SMS y aun así presentar la propuesta como correcta
 
 Si existe error crítico:
 
@@ -244,90 +236,97 @@ Si existe error crítico:
 ## 9. Reglas específicas de evaluación
 
 ### 9.1 Sobre `incident_case`
-
-**Evaluar si:**
+Evaluar si:
 
 - `header` es razonable
 - `failure_text` representa el problema principal
 - `impact_text` representa la afectación real
-- `start_time` solo se llena cuando existe una fecha/hora de inicio explícita y suficientemente clara en el SMS
-- `incident_status` no contradice el documento
-- `pending_rca` es prudente
+- `start_time` solo se llena cuando existe una fecha/hora explícita y clara de inicio
+- `solution_time` solo se llena cuando existe una fecha/hora explícita y clara de fin/solución
+- `incident_status` no contradice el SMS
 - `probable_cause_text` solo se llena con respaldo suficiente
 - `resolution_summary` no inventa remediación
 - `tickets` son reales y consistentes
+- `case_id` está presente cuando el SMS contiene ticket explícito
+- `case_id` corresponde a un ticket real del SMS y no a texto libre o valor incompleto
+
+#### Regla de severidad para `case_id`
+- Si el SMS contiene ticket explícito y `case_id` está vacío, nulo o inconsistente, es una falla grave.
+- En ese escenario, la propuesta no debe ser `accepted`.
+- Si contradice los tickets explícitos del SMS, debe tratarse como error crítico.
+
+#### Regla de severidad para tiempos faltantes
+- Si el SMS contiene `FECHA/H.Inicio`, `H.Inicio` o equivalente claro y falta `start_time`, debe penalizarse en `coverage`.
+- Si el SMS contiene `FECHA/H.Fin`, `Hora de solución`, `Fecha de solución` o equivalente claro y falta `solution_time`, debe penalizarse en `coverage`.
+- Estos faltantes deben mencionarse explícitamente en `issues`, `improvement_actions` y `feedback`.
 
 ### 9.2 Sobre `timeline_entries`
-
 El juez debe evaluar `timeline_entries` con criterio estricto cuando el SMS contenga una **bitácora operativa explícita**.
 
-#### Qué debe entender el juez por bitácora operativa
-La bitácora operativa es el bloque del SMS que narra la evolución temporal del incidente paso a paso.
-
-Suele aparecer después de encabezados como:
+#### Qué es bitácora operativa
+Es el bloque del SMS que narra la evolución temporal del incidente, normalmente después de encabezados como:
 
 - `ACCIONES:`
 - `SOLUCIONADO:`
 
-u otros encabezados equivalentes que introducen el desarrollo operativo del caso.
+o equivalentes.
 
-#### Regla de evaluación general
-- Si el documento fuente contiene una bitácora operativa explícita, el juez debe verificar si la propuesta refleja de manera suficiente esa cronología en `timeline_entries`.
-- Cuando la bitácora contiene múltiples entradas cronológicas que inician con hora, cada una de esas entradas debe evaluarse como un **candidato fuerte** a `timeline_entry`.
-- El juez no debe asumir que toda hora presente en cualquier parte del SMS es automáticamente un `timeline_entry`; la exigencia aplica específicamente al cuerpo de la bitácora operativa.
+#### Regla general
+- Si existe bitácora operativa explícita, el juez debe verificar si la propuesta refleja de manera suficiente esa cronología.
+- Cuando la bitácora contiene múltiples entradas cronológicas que inician con hora, cada una debe evaluarse como un candidato fuerte a `timeline_entry`.
+- No toda hora del SMS es automáticamente timeline; la exigencia aplica al cuerpo de la bitácora operativa.
 
-#### Qué debe penalizar el juez
-Penalizar cuando:
-- faltan múltiples entradas horarias relevantes de la bitácora
-- se omiten pasos intermedios importantes del desarrollo del incidente
-- se resume una bitácora extensa a solo unos pocos hitos
-- se pierden eventos de revisión, descarte, coordinación, autorización, validación o conformidad claramente narrados en la bitácora
+#### Penalizar cuando
+- faltan múltiples entradas horarias relevantes
+- se omiten pasos intermedios importantes
+- se resume una bitácora extensa a muy pocos hitos
+- se pierden eventos de revisión, descarte, coordinación, autorización, validación o conformidad
 
-#### Qué debe considerar cobertura adecuada
+#### Regla de severidad adicional
+- Si el SMS contiene una bitácora claramente multi-hito y la propuesta conserva solo 2 o 3 hitos principales sin suficiente justificación, el juez debe castigar fuertemente `coverage`.
+- No basta con inicio, solución y cierre cuando la fuente contiene más proceso operativo.
+
+#### Cobertura adecuada
 Una propuesta tiene buena cobertura de `timeline_entries` si:
-- representa de forma razonablemente completa la secuencia operativa del incidente
-- conserva los hitos relevantes del desarrollo temporal
-- permite reconstruir el flujo del incidente sin perder pasos importantes
 
-#### Consecuencia evaluativa
-- Si la bitácora operativa del SMS es extensa y la propuesta omite una parte sustancial de sus entradas, el juez no debe asignar score alto en `coverage`.
-- Si la omisión afecta la trazabilidad del incidente, la decisión debe tender a `accepted_with_observations` o `rejected`, según la magnitud de la pérdida.
+- representa de forma razonablemente completa la secuencia del incidente
+- conserva hitos relevantes del desarrollo temporal
+- permite reconstruir el flujo sin perder pasos importantes
 
 ### 9.3 Sobre `troubleshooting_actions`
+El juez debe evaluar `troubleshooting_actions` con rigor cuando el SMS describa acciones técnicas, diagnósticas o de validación.
 
-El juez debe evaluar `troubleshooting_actions` con rigor cuando el SMS describa acciones técnicas, diagnósticas o de validación vinculadas al proceso de resolución.
+#### Regla general
+- Si el SMS contiene revisión, descarte, validación, rollback, monitoreo, revisión de logs, revisión de servidores, revisión de IPs, revisión de pases o validaciones funcionales, el juez debe verificar si esas acciones fueron reflejadas adecuadamente.
+- No basta con capturar únicamente la remediación final si el SMS describe varias acciones previas.
 
-#### Regla de evaluación general
-- Si el documento fuente contiene acciones claras de revisión, descarte, validación, rollback, monitoreo, revisión de logs, verificación de servidores, revisión de IPs, revisión de pases o validaciones funcionales, el juez debe verificar si esas acciones fueron reflejadas adecuadamente en `troubleshooting_actions`.
-- No basta con capturar únicamente la remediación final si el documento fuente describe varias acciones relevantes previas.
-
-#### Qué debe penalizar el juez
-Penalizar cuando:
-- solo aparece la acción final de remediación y se omiten acciones diagnósticas previas
-- faltan acciones explícitas de revisión técnica
-- faltan actividades de descarte claramente descritas
+#### Penalizar cuando
+- solo aparece la acción final y faltan acciones diagnósticas previas
+- faltan revisiones técnicas explícitas
+- faltan descartes claramente descritos
 - faltan validaciones técnicas o funcionales relevantes
 - la propuesta reduce el troubleshooting a una sola acción cuando el SMS describe un proceso técnico más amplio
 
-#### Qué debe considerar cobertura adecuada
+#### Regla de severidad adicional
+- Si el SMS describe un proceso técnico claramente multi-hito y la propuesta conserva solo una `troubleshooting_action` o una fracción mínima del troubleshooting real, el juez debe castigar fuertemente `coverage`.
+- Si la omisión del troubleshooting intermedio impide entender cómo se llegó a la solución, la decisión debe tender a `accepted_with_observations` o `rejected`.
+
+#### Cobertura adecuada
 Una propuesta tiene buena cobertura de `troubleshooting_actions` si:
-- representa las acciones técnicas relevantes presentes en el SMS
+
+- representa las acciones técnicas relevantes del SMS
 - distingue razonablemente entre diagnóstico, remediación y validación
 - conserva las acciones que permiten entender cómo se llegó a la solución
 
-#### Regla específica sobre clasificación
-El juez debe revisar también si las acciones fueron clasificadas con prudencia:
+#### Clasificación
+El juez debe revisar si las acciones fueron clasificadas con prudencia:
 
-- actividades de revisión o descarte deben tender a roles diagnósticos
-- actividades de rollback o corrección deben tender a remediación
-- actividades de validación o conformidad deben tender a validación
+- revisión o descarte → tienden a diagnóstico
+- rollback o corrección → tienden a remediación
+- validación o conformidad → tienden a validación
 
-Si la clasificación es imperfecta pero razonable, puede aceptarse con observaciones.
+Si la clasificación es imperfecta pero razonable, puede aceptarse con observaciones.  
 Si la propuesta omite casi todo el troubleshooting o cambia fuertemente su significado, debe penalizarse con mayor severidad.
-
-#### Consecuencia evaluativa
-- Si el SMS describe varias acciones técnicas y la propuesta solo conserva una fracción pequeña, el juez no debe asignar score alto en `coverage`.
-- Si además la omisión afecta la comprensión del proceso de resolución, debe reflejarse claramente en `issues`, `improvement_actions` y `feedback`.
 
 ---
 
@@ -337,14 +336,19 @@ El juez debe premiar propuestas que:
 
 - no inventan
 - no sobreinterpretan
-- dejan vacíos razonables
-- distinguen claramente evidencia vs inferencia
+- dejan vacíos razonables cuando no hay evidencia
+- distinguen evidencia vs inferencia
 
 El juez debe penalizar propuestas que:
 
 - suenan convincentes pero no están respaldadas
-- agregan demasiada interpretación técnica
+- agregan interpretación técnica excesiva
 - presentan como hechos cosas que son solo hipótesis
+
+### Regla importante sobre vacíos razonables vs vacíos incorrectos
+- Un valor vacío o `null` es correcto si el SMS no aporta evidencia suficiente.
+- Un valor vacío o `null` es incorrecto si el SMS sí aporta evidencia explícita o muy clara.
+- El juez debe distinguir ambos casos y reflejarlo en `issues` y `feedback`.
 
 ---
 
@@ -355,10 +359,9 @@ El campo `feedback` debe ser:
 - explícito
 - detallado
 - accionable
-- útil para un segundo intento del extractor o para el fallback
+- útil para un segundo intento o para el fallback
 
-### 11.1 Qué debe incluir el feedback
-
+### 11.1 Qué debe incluir
 El feedback debe indicar claramente:
 
 - si la propuesta es aceptable o no
@@ -368,7 +371,6 @@ El feedback debe indicar claramente:
 - por qué se tomó la decisión
 
 ### 11.2 Qué debe evitar
-
 No usar feedback genérico como:
 
 - “mejorar extracción”
@@ -378,48 +380,57 @@ No usar feedback genérico como:
 Debe especificar:
 
 - qué campo falló
+- qué dato faltó o vino `null`
 - qué clasificación fue incorrecta
 - qué inferencia fue débil
-- qué acción correctiva se espera
+- qué corrección se espera
 
-### 11.3 Estilo recomendado
+### 11.3 Regla obligatoria sobre faltantes/null
+Si la propuesta deja vacío, nulo o ausente un dato importante que sí estaba presente en el SMS, el juez debe:
 
-El feedback debe sonar como una revisión técnica útil para otro agente o intento posterior.
+- mencionarlo explícitamente en `issues`
+- convertirlo en una corrección concreta en `improvement_actions`
+- describirlo claramente en `feedback`
 
-**Ejemplo de buen estilo:**
+### 11.4 Estilo recomendado
+El feedback debe sonar como una revisión técnica útil para otro agente.
 
-> “La propuesta identifica correctamente el impacto y el ticket, pero infiere una causa técnica no respaldada por el SMS. Debe dejar `probable_cause_text` vacío y mover esa interpretación a `warnings` o eliminarla.”
+Ejemplo:
+
+> “La propuesta identifica correctamente el ticket y el impacto, pero omite `solution_time` pese a que el SMS contiene una fecha/hora de fin explícita. Debe poblar ese campo y ampliar el timeline intermedio.”
 
 ---
 
 ## 12. Reglas sobre `strengths`, `issues` e `improvement_actions`
 
 ### 12.1 `strengths`
+Debe listar aspectos positivos concretos.
 
-Debe listar los aspectos positivos concretos de la propuesta.
-
-**Ejemplos:**
-
+Ejemplos:
 - “Captura correctamente el ticket principal.”
-- “Distingue bien las acciones operativas del timeline.”
+- “Representa bien la cronología operativa.”
 - “Mantiene prudencia sobre la causa raíz.”
 
 ### 12.2 `issues`
-
 Debe listar problemas concretos.
 
-**Ejemplos:**
+Incluir especialmente:
 
-- “Clasifica una observación como `troubleshooting_action`.”
-- “La metadata usa un `model_name` incorrecto.”
-- “Omite parte relevante del impacto.”
+- campos faltantes o `null` que debieron poblarse
+- cobertura insuficiente
+- clasificación incorrecta
+- metadata inconsistente
+
+Ejemplos:
+- “Omite `solution_time` pese a existir fecha/hora de fin explícita.”
+- “Reduce una bitácora multi-hito a solo 3 `timeline_entries`.”
+- “Conserva solo una acción de troubleshooting en un proceso técnico claramente más amplio.”
 
 ### 12.3 `improvement_actions`
-
 Debe proponer correcciones concretas para el siguiente intento.
 
-**Ejemplos:**
-
-- “Eliminar `probable_cause_text` si no existe evidencia explícita.”
-- “Reclasificar la línea de monitoreo como `timeline_entry`.”
-- “Ajustar `model_name` para reflejar el LLM real usado.”
+Ejemplos:
+- “Poblar `case_id` desde el ticket explícito del SMS.”
+- “Agregar `solution_time` usando la fecha/hora de fin explícita.”
+- “Ampliar `timeline_entries` para conservar los hitos intermedios relevantes.”
+- “Agregar acciones diagnósticas omitidas antes de la remediación final.”

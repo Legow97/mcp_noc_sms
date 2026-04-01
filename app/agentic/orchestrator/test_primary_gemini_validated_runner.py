@@ -36,7 +36,6 @@ HORA DE SOLUCIÓN: 09/02/2026 08:05 hrs.
         enforce_rulebook_usage=True,
         extra_instruction=(
                 "Devuelve únicamente JSON válido compatible con el contrato canónico. "
-                "Usa pending_rca=true por defecto salvo evidencia explícita en contra. "
                 "En extraction_metadata: "
                 "extractor_name debe ser 'primary_extractor', "
                 "extractor_version debe ser una versión lógica simple como 'v1', "
@@ -60,7 +59,6 @@ HORA DE SOLUCIÓN: 09/02/2026 08:05 hrs.
                     "failure_text": {"type": "STRING"},
                     "impact_text": {"type": "STRING"},
                     "incident_status": {"type": "STRING"},
-                    "pending_rca": {"type": "BOOLEAN"},
                     "raw_sms": {"type": "STRING"},
                     "probable_cause_text": {"type": "STRING"},
                     "resolution_summary": {"type": "STRING"},
@@ -76,7 +74,6 @@ HORA DE SOLUCIÓN: 09/02/2026 08:05 hrs.
                     "source_type",
                     "failure_text",
                     "incident_status",
-                    "pending_rca",
                     "raw_sms",
                     "component_types",
                     "components_affected",
@@ -94,10 +91,6 @@ HORA DE SOLUCIÓN: 09/02/2026 08:05 hrs.
                     "properties": {
                         "event_time": {"type": "STRING"},
                         "event_text": {"type": "STRING"},
-                        "event_type": {"type": "STRING"},
-                        "team": {"type": "STRING"},
-                        "action_detected": {"type": "STRING"},
-                        "observation_detected": {"type": "STRING"},
                         "sequence_order": {"type": "INTEGER"},
                     },
                     "required": ["event_text", "sequence_order"],
@@ -112,8 +105,6 @@ HORA DE SOLUCIÓN: 09/02/2026 08:05 hrs.
                         "action_type": {"type": "STRING"},
                         "action_role": {"type": "STRING"},
                         "target_component": {"type": "STRING"},
-                        "outcome": {"type": "STRING"},
-                        "was_effective": {"type": "BOOLEAN"},
                         "sequence_order": {"type": "INTEGER"},
                     },
                     "required": ["action_text", "sequence_order"],

@@ -18,7 +18,6 @@ class ParsedSmsBitacora:
     impact_text: str | None
     start_time: datetime | None
     incident_status: str
-    pending_rca: bool
     raw_sms: str
     parser_output_json: dict
     enrichment_json: dict
@@ -79,7 +78,6 @@ class SmsBitacoraParser:
             impact_text=impact_text,
             start_time=start_time,
             incident_status=IncidentStatus.CLOSED.value,
-            pending_rca=True,
             raw_sms=raw_text,
             parser_output_json={
                 "parser_name": "SmsBitacoraParser",

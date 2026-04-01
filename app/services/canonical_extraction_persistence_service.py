@@ -14,6 +14,11 @@ from app.db.repositories.incident_timeline_entry_repository import (
 from app.db.repositories.troubleshooting_action_repository import (
     TroubleshootingActionRepository,
 )
+from app.core.ingestion_trace import (
+    bind_case_id,
+    bind_persistence_counts,
+    log_ingestion_event,
+)
 from app.services.mappers.canonical_extraction_mapper import (
     CanonicalExtractionMapper,
     CanonicalExtractionPersistenceBundle,
@@ -88,6 +93,19 @@ class CanonicalExtractionPersistenceService:
             "[PERSISTENCE SERVICE] save_accepted_result extraction recibido:",
             extraction.model_dump(mode="json"),
         )
+        bind_case_id(case_id or extraction.incident_case.case_id)
+        log_ingestion_event(
+            layer="persistence_service",
+            event="save_accepted_result_received",
+            payload={
+                "case_id": case_id or extraction.incident_case.case_id,
+                "judge_decision": judge_decision,
+                "timeline_entries_count": len(extraction.timeline_entries),
+                "troubleshooting_actions_count": len(
+                    extraction.troubleshooting_actions
+                ),
+            },
+        )
         print(
             "[PERSISTENCE SERVICE] save_accepted_result judge_decision:",
             judge_decision,
@@ -119,6 +137,20 @@ class CanonicalExtractionPersistenceService:
             judge_evaluation=judge_evaluation,
             trace=trace,
         )
+        bind_case_id(resolved_case_id)
+        bind_persistence_counts(
+            timeline_entries_count=len(bundle.timeline_entries),
+            troubleshooting_actions_count=len(bundle.troubleshooting_actions),
+        )
+        log_ingestion_event(
+            layer="persistence_service",
+            event="bundle_built",
+            payload={
+                "case_id": resolved_case_id,
+                "timeline_entries_count": len(bundle.timeline_entries),
+                "troubleshooting_actions_count": len(bundle.troubleshooting_actions),
+            },
+        )
         print(
             "[PERSISTENCE SERVICE] bundle generado por el mapper:",
             self._summarize_bundle(bundle),
@@ -126,15 +158,38 @@ class CanonicalExtractionPersistenceService:
 
         try:
             self._persist_bundle(bundle)
+            log_ingestion_event(
+                layer="persistence_service",
+                event="persist_bundle_completed",
+                payload={"case_id": resolved_case_id},
+            )
             print("[TRANSACTION] Antes de commit()", {"case_id": resolved_case_id})
             self._db.commit()
+            log_ingestion_event(
+                layer="persistence_service",
+                event="commit_completed",
+                payload={"case_id": resolved_case_id},
+            )
             print("[TRANSACTION] Después de commit()", {"case_id": resolved_case_id})
         except Exception as exc:
+            log_ingestion_event(
+                layer="persistence_service",
+                event="persist_failed",
+                status="error",
+                error=str(exc),
+                payload={"case_id": resolved_case_id},
+            )
             print(
                 "[ERROR] [TRANSACTION] Excepción antes de rollback():",
                 str(exc),
             )
             self._db.rollback()
+            log_ingestion_event(
+                layer="persistence_service",
+                event="rollback_completed",
+                status="error",
+                payload={"case_id": resolved_case_id},
+            )
             print("[TRANSACTION] rollback() ejecutado", {"case_id": resolved_case_id})
             raise
 
@@ -233,7 +288,6 @@ class CanonicalExtractionPersistenceService:
                 {
                     "sequence_order": entry.sequence_order,
                     "event_time": entry.event_time,
-                    "event_type": entry.event_type,
                     "event_text": entry.event_text[:160],
                 }
                 for entry in bundle.timeline_entries

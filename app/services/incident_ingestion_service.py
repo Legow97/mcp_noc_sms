@@ -47,7 +47,6 @@ class IncidentIngestionService:
             start_time=parsed_sms.start_time,
             solution_time=payload.received_at.replace(tzinfo=timezone.utc),
             status=parsed_sms.incident_status,
-            pending_rca=parsed_sms.pending_rca,
             raw_sms=parsed_sms.raw_sms,
             probable_cause_text=None,
             resolution_summary=None,

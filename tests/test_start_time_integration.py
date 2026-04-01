@@ -34,7 +34,6 @@ def build_extraction(
             start_time=start_time,
             solution_time=solution_time,
             incident_status="closed",
-            pending_rca=True,
             raw_sms=(
                 "INC000000123456\n"
                 "FECHA/H.Inicio: 13/03/2026 7:16 hrs.\n"

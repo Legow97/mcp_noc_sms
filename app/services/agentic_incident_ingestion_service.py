@@ -9,6 +9,12 @@ from app.agentic.orchestrator.orchestration_models import (
     CanonicalExtractionOrchestrationResult,
 )
 from app.api.schemas.incident_requests import IngestSmsRequest
+from app.core.ingestion_trace import (
+    bind_case_id,
+    bind_judge_result,
+    bind_persistence_counts,
+    log_ingestion_event,
+)
 from app.services.canonical_extraction_persistence_service import (
     CanonicalExtractionPersistenceService,
 )
@@ -47,11 +53,37 @@ class AgenticIncidentIngestionService:
         )
 
     def ingest_sms(self, payload: IngestSmsRequest) -> AgenticIncidentIngestionResult:
+        log_ingestion_event(
+            layer="agentic_service",
+            event="payload_received",
+            payload={
+                "source_channel": payload.source_channel,
+                "received_at": payload.received_at.isoformat(),
+            },
+        )
         print(
             "[AGENTIC SERVICE] ingest_sms payload recibido:",
             payload.model_dump(mode="json"),
         )
         orchestration_result = self._run_orchestrator(payload)
+        log_ingestion_event(
+            layer="agentic_service",
+            event="orchestration_completed",
+            payload={
+                "has_accepted_result": orchestration_result.accepted_result is not None,
+                "judge_decision": getattr(
+                    orchestration_result.judge_evaluation,
+                    "decision",
+                    None,
+                ),
+                "final_score": getattr(
+                    orchestration_result.judge_evaluation,
+                    "score",
+                    None,
+                ),
+                "fallback_triggered": orchestration_result.trace.fallback_triggered,
+            },
+        )
         print(
             "[AGENTIC SERVICE] resultado del orquestador:",
             orchestration_result.model_dump(mode="json"),
@@ -75,6 +107,20 @@ class AgenticIncidentIngestionService:
         )
 
         if accepted_result is None:
+            bind_judge_result(
+                judge_decision=getattr(judge_evaluation, "decision", None),
+                final_score=getattr(judge_evaluation, "score", None),
+                fallback_triggered=getattr(trace, "fallback_triggered", None),
+            )
+            log_ingestion_event(
+                layer="agentic_service",
+                event="accepted_result_missing",
+                status="error",
+                payload={
+                    "judge_decision": getattr(judge_evaluation, "decision", None),
+                    "final_score": getattr(judge_evaluation, "score", None),
+                },
+            )
             print(
                 "[ERROR] [AGENTIC SERVICE] accepted_result es None; no hay resultado para persistir."
             )
@@ -83,6 +129,22 @@ class AgenticIncidentIngestionService:
             )
 
         judge_decision = self._extract_judge_decision(judge_evaluation)
+        bind_case_id(accepted_result.incident_case.case_id)
+        bind_judge_result(
+            judge_decision=judge_decision,
+            final_score=getattr(judge_evaluation, "score", None),
+            fallback_triggered=getattr(trace, "fallback_triggered", None),
+        )
+        log_ingestion_event(
+            layer="agentic_service",
+            event="accepted_result_ready",
+            payload={
+                "case_id": accepted_result.incident_case.case_id,
+                "judge_decision": judge_decision,
+                "final_score": getattr(judge_evaluation, "score", None),
+                "fallback_triggered": getattr(trace, "fallback_triggered", None),
+            },
+        )
         print("[AGENTIC SERVICE] judge_decision:", judge_decision)
 
         try:
@@ -105,6 +167,21 @@ class AgenticIncidentIngestionService:
             timeline_entries_saved=persistence_result.timeline_entries_saved,
             troubleshooting_actions_saved=persistence_result.troubleshooting_actions_saved,
         )
+        bind_case_id(result.case_id)
+        bind_persistence_counts(
+            timeline_entries_count=result.timeline_entries_saved,
+            troubleshooting_actions_count=result.troubleshooting_actions_saved,
+        )
+        log_ingestion_event(
+            layer="agentic_service",
+            event="ingestion_completed",
+            payload={
+                "case_id": result.case_id,
+                "judge_decision": result.judge_decision,
+                "timeline_entries_saved": result.timeline_entries_saved,
+                "troubleshooting_actions_saved": result.troubleshooting_actions_saved,
+            },
+        )
         print(
             "[AGENTIC SERVICE] resultado final de ingest_sms:",
             result,
@@ -120,9 +197,20 @@ class AgenticIncidentIngestionService:
         El contrato actual del request expone `raw_text`, que es el SMS fuente.
         """
         print("[ORCHESTRATOR] texto enviado al orquestador:", payload.raw_text)
+        log_ingestion_event(
+            layer="agentic_service",
+            event="orchestrator_started",
+            payload={"raw_sms_preview": " ".join(payload.raw_text.split())[:240]},
+        )
         try:
             result = self._orchestrator.extract(payload.raw_text)
         except Exception as exc:
+            log_ingestion_event(
+                layer="agentic_service",
+                event="orchestrator_failed",
+                status="error",
+                error=str(exc),
+            )
             print("[ERROR] [ORCHESTRATOR] Falló extract():", str(exc))
             raise
 

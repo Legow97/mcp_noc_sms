@@ -8,6 +8,7 @@ from app.agentic.contracts.canonical_extraction import (
     CanonicalTroubleshootingActionData,
 )
 from app.core.temporal import parse_incident_datetime
+from app.core.ingestion_trace import log_ingestion_event
 from app.db.models import (
     IncidentCaseModel,
     IncidentTimelineEntryModel,
@@ -31,6 +32,17 @@ class CanonicalExtractionMapper:
         judge_evaluation: dict | None = None,
         trace: object | None = None,
     ) -> CanonicalExtractionPersistenceBundle:
+        log_ingestion_event(
+            layer="mapper",
+            event="build_bundle_started",
+            payload={
+                "case_id": case_id,
+                "timeline_entries_count": len(extraction.timeline_entries),
+                "troubleshooting_actions_count": len(
+                    extraction.troubleshooting_actions
+                ),
+            },
+        )
         print(
             "[MAPPER] build_bundle entrada:",
             {
@@ -81,6 +93,15 @@ class CanonicalExtractionMapper:
                 ],
             },
         )
+        log_ingestion_event(
+            layer="mapper",
+            event="build_bundle_completed",
+            payload={
+                "case_id": incident_case.case_id,
+                "timeline_entries_count": len(timeline_entries),
+                "troubleshooting_actions_count": len(troubleshooting_actions),
+            },
+        )
 
         return CanonicalExtractionPersistenceBundle(
             incident_case=incident_case,
@@ -118,7 +139,6 @@ class CanonicalExtractionMapper:
             start_time=parse_incident_datetime(incident.start_time),
             solution_time=parse_incident_datetime(incident.solution_time),
             status=incident.incident_status.strip(),
-            pending_rca=incident.pending_rca,
             raw_sms=incident.raw_sms.strip(),
             probable_cause_text=self._clean_optional_text(incident.probable_cause_text),
             resolution_summary=self._clean_optional_text(incident.resolution_summary),
@@ -147,10 +167,6 @@ class CanonicalExtractionMapper:
                     case_id=case_id,
                     event_time=self._clean_optional_text(item.event_time),
                     event_text=item.event_text.strip(),
-                    event_type=self._clean_optional_text(item.event_type),
-                    team=self._clean_optional_text(item.team),
-                    action_detected=self._clean_optional_text(item.action_detected),
-                    observation_detected=self._clean_optional_text(item.observation_detected),
                     sequence_order=item.sequence_order,
                 )
             )
@@ -173,8 +189,6 @@ class CanonicalExtractionMapper:
                     action_type=self._clean_optional_text(item.action_type),
                     action_role=self._clean_optional_text(item.action_role),
                     target_component=self._clean_optional_text(item.target_component),
-                    outcome=self._clean_optional_text(item.outcome),
-                    was_effective=item.was_effective,
                     sequence_order=item.sequence_order,
                 )
             )
@@ -226,8 +240,6 @@ class CanonicalExtractionMapper:
         return {
             "sequence_order": entry.sequence_order,
             "event_time": entry.event_time,
-            "event_type": entry.event_type,
-            "team": entry.team,
             "event_text": entry.event_text[:160],
         }
 
