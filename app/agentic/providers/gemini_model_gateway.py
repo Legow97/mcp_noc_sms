@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import os
+
 from google import genai
 
 from app.agentic.providers.model_gateway import BaseModelGateway
@@ -21,13 +23,22 @@ class GeminiModelGateway(BaseModelGateway):
         self,
         provider_name: str = "gemini",
     ) -> None:
-        if not settings.agentic_models.api_key:
-            raise ValueError(
-                "AGENTIC_API_KEY está vacío. Configura la API key en el .env."
-            )
+        use_vertexai = os.getenv("GOOGLE_GENAI_USE_VERTEXAI", "").strip().lower() in {
+            "true",
+            "1",
+            "yes",
+        }
 
         self._provider_name = provider_name
-        self._client = genai.Client(api_key=settings.agentic_models.api_key)
+        if use_vertexai:
+            self._client = genai.Client()
+        else:
+            if not settings.agentic_models.api_key:
+                raise ValueError(
+                    "AGENTIC_API_KEY está vacío. Configura la API key en el .env."
+                )
+
+            self._client = genai.Client(api_key=settings.agentic_models.api_key)
 
     def invoke(self, context: ModelInvocationContext) -> ModelRawResponse:
         """

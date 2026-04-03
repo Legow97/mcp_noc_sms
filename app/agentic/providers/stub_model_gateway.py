@@ -98,9 +98,7 @@ class StubModelGateway(BaseModelGateway):
             '"rulebook_path": "app/agentic/rules/incident_extraction_rules.md", '
             '"rulebook_version": "v1", '
             '"confidence_notes": [], '
-            '"warnings": [], '
-            '"missing_fields": [], '
-            '"inferred_fields": []'
+            '"warnings": []'
             "}"
             "}"
         )
@@ -140,9 +138,7 @@ class StubModelGateway(BaseModelGateway):
             '"rulebook_path": "app/agentic/rules/incident_extraction_rules.md", '
             '"rulebook_version": "v1", '
             '"confidence_notes": [], '
-            '"warnings": [], '
-            '"missing_fields": [], '
-            '"inferred_fields": []'
+            '"warnings": []'
             "}"
             "}"
         )

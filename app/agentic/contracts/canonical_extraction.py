@@ -63,7 +63,6 @@ class CanonicalExtractionMetadata(BaseModel):
     - qué versión lógica del extractor/prompt se usó
     - qué modelo LLM participó
     - notas de confianza y advertencias
-    - campos faltantes o inferidos
 
     No debe exponer rutas internas ni detalles innecesarios del rulebook.
     """
@@ -73,8 +72,6 @@ class CanonicalExtractionMetadata(BaseModel):
     model_name: str | None = None
     confidence_notes: list[str] = Field(default_factory=list)
     warnings: list[str] = Field(default_factory=list)
-    missing_fields: list[str] = Field(default_factory=list)
-    inferred_fields: list[str] = Field(default_factory=list)
 
 
 class CanonicalExtractionResult(BaseModel):
