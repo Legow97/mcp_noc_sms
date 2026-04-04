@@ -117,6 +117,35 @@ class AgenticModelSettings(BaseAppSettings):
     )
 
 
+class RetrievalSettings(BaseAppSettings):
+    """Configuración del subsistema de retrieval semántico."""
+
+    embedding_provider: str = Field(
+        default="gemini",
+        alias="RETRIEVAL_EMBEDDING_PROVIDER",
+    )
+    embedding_model: str = Field(
+        default="gemini-embedding-001",
+        alias="RETRIEVAL_EMBEDDING_MODEL",
+    )
+    document_version: str = Field(
+        default="v1",
+        alias="RETRIEVAL_DOCUMENT_VERSION",
+    )
+    gemini_api_key: str = Field(
+        default="",
+        alias="RETRIEVAL_GEMINI_API_KEY",
+    )
+    timeout_ms: int = Field(
+        default=30000,
+        alias="RETRIEVAL_EMBEDDING_TIMEOUT_MS",
+    )
+    use_vertexai: bool | None = Field(
+        default=None,
+        alias="RETRIEVAL_USE_VERTEXAI",
+    )
+
+
 class Settings:
     """
     Objeto raíz de configuración.
@@ -133,6 +162,7 @@ class Settings:
         self.logging = LoggingSettings()
         self.features = FeatureSettings()
         self.agentic_models = AgenticModelSettings()
+        self.retrieval = RetrievalSettings()
 
 
 @lru_cache(maxsize=1)

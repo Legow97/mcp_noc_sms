@@ -81,6 +81,33 @@ class IncidentCaseRepository:
             .all()
         )
 
+    def count_all(self) -> int:
+        """
+        Cuenta todos los incidentes persistidos.
+        """
+        return self._db.query(IncidentCaseModel).count()
+
+    def list_case_ids(
+        self,
+        *,
+        limit: int | None = None,
+        offset: int = 0,
+    ) -> list[str]:
+        """
+        Lista case_id persistidos ordenados por fecha de creación ascendente.
+        """
+        query = self._db.query(IncidentCaseModel.case_id).order_by(
+            IncidentCaseModel.created_at.asc(),
+            IncidentCaseModel.case_id.asc(),
+        )
+
+        if offset > 0:
+            query = query.offset(offset)
+        if limit is not None:
+            query = query.limit(limit)
+
+        return [row[0] for row in query.all()]
+
     def update_fields(
         self,
         case_id: str,

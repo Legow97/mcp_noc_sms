@@ -4,6 +4,7 @@ from uuid import UUID, uuid4
 from sqlalchemy import DateTime, ForeignKey, Integer, Text, String
 from sqlalchemy.dialects.postgresql import JSONB, UUID as PGUUID
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
+from pgvector.sqlalchemy import Vector
 
 
 def utc_now() -> datetime:
@@ -143,4 +144,43 @@ class TroubleshootingActionModel(Base):
         DateTime(timezone=True),
         nullable=False,
         default=utc_now,
+    )
+
+
+class IncidentRetrievalDocumentModel(Base):
+    """
+    Índice persistente de documentos de retrieval por incidente y versión.
+
+    Mantiene separado el dominio transaccional del material indexable
+    para embeddings/reindexación futura.
+    """
+
+    __tablename__ = "incident_retrieval_documents"
+
+    EMBEDDING_DIMENSIONS = 3072
+
+    case_id: Mapped[str] = mapped_column(
+        String(32),
+        ForeignKey("incident_cases.case_id", ondelete="CASCADE"),
+        primary_key=True,
+    )
+    document_version: Mapped[str] = mapped_column(String(16), primary_key=True)
+
+    document_text: Mapped[str] = mapped_column(Text, nullable=False)
+    embedding: Mapped[list[float]] = mapped_column(
+        Vector(EMBEDDING_DIMENSIONS),
+        nullable=False,
+        default=list,
+    )
+
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        nullable=False,
+        default=utc_now,
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        nullable=False,
+        default=utc_now,
+        onupdate=utc_now,
     )

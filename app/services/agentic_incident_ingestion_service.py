@@ -21,6 +21,9 @@ from app.services.canonical_extraction_persistence_service import (
 from app.services.mappers.canonical_extraction_mapper import (
     CanonicalExtractionMapper,
 )
+from app.services.retrieval.incident_retrieval_indexing_service import (
+    IncidentRetrievalIndexingService,
+)
 
 
 @dataclass(slots=True)
@@ -44,12 +47,17 @@ class AgenticIncidentIngestionService:
         self,
         db_session: Session,
         orchestrator: Any,
+        retrieval_indexing_service: IncidentRetrievalIndexingService | None = None,
     ) -> None:
         self._db = db_session
         self._orchestrator = orchestrator
         self._persistence_service = CanonicalExtractionPersistenceService(
             db_session=db_session,
             mapper=CanonicalExtractionMapper(),
+        )
+        self._retrieval_indexing_service = (
+            retrieval_indexing_service
+            or IncidentRetrievalIndexingService(db_session=db_session)
         )
 
     def ingest_sms(self, payload: IngestSmsRequest) -> AgenticIncidentIngestionResult:
@@ -158,11 +166,12 @@ class AgenticIncidentIngestionService:
             print("[ERROR] [AGENTIC SERVICE] save_accepted_result falló:", str(exc))
             raise
 
+        indexed = self._index_persisted_case(persistence_result.case_id)
         result = AgenticIncidentIngestionResult(
             case_id=persistence_result.case_id,
             incident_status=persistence_result.incident_status,
             parsed_ok=True,
-            indexed=True,
+            indexed=indexed,
             judge_decision=judge_decision,
             timeline_entries_saved=persistence_result.timeline_entries_saved,
             troubleshooting_actions_saved=persistence_result.troubleshooting_actions_saved,
@@ -187,6 +196,69 @@ class AgenticIncidentIngestionService:
             result,
         )
         return result
+
+    def _index_persisted_case(self, case_id: str) -> bool:
+        bind_case_id(case_id)
+        log_ingestion_event(
+            layer="agentic_service",
+            event="retrieval_indexing_started",
+            payload={"case_id": case_id},
+        )
+        print("[AGENTIC SERVICE] retrieval indexing started:", {"case_id": case_id})
+
+        try:
+            indexing_result = self._retrieval_indexing_service.index_case(case_id)
+        except Exception as exc:
+            self._db.rollback()
+            log_ingestion_event(
+                layer="agentic_service",
+                event="retrieval_indexing_failed",
+                status="error",
+                error=str(exc),
+                payload={"case_id": case_id},
+            )
+            print(
+                "[ERROR] [AGENTIC SERVICE] retrieval indexing failed:",
+                {"case_id": case_id, "error": str(exc)},
+            )
+            return False
+
+        if indexing_result is None:
+            log_ingestion_event(
+                layer="agentic_service",
+                event="retrieval_indexing_skipped",
+                status="error",
+                payload={
+                    "case_id": case_id,
+                    "reason": "case_not_found_in_database",
+                },
+            )
+            print(
+                "[ERROR] [AGENTIC SERVICE] retrieval indexing returned no source data:",
+                {"case_id": case_id},
+            )
+            return False
+
+        log_ingestion_event(
+            layer="agentic_service",
+            event="retrieval_indexing_completed",
+            payload={
+                "case_id": case_id,
+                "document_version": indexing_result.document_version,
+                "created": indexing_result.created,
+                "embedding_dimensions": indexing_result.embedding_dimensions,
+                "document_text_length": indexing_result.document_text_length,
+            },
+        )
+        print(
+            "[AGENTIC SERVICE] retrieval indexing completed:",
+            {
+                "case_id": case_id,
+                "document_version": indexing_result.document_version,
+                "created": indexing_result.created,
+            },
+        )
+        return indexing_result.indexed
 
     def _run_orchestrator(
         self,
