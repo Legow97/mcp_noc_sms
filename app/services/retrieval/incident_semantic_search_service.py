@@ -101,6 +101,64 @@ class IncidentSemanticSearchService:
             ],
         )
 
+    def search_similar_to_case(
+        self,
+        case_id: str,
+        *,
+        limit: int = 5,
+        distance_threshold: float | None = None,
+        document_version: str | None = None,
+    ) -> IncidentSemanticSearchResult:
+        normalized_case_id = case_id.strip().upper()
+        if not normalized_case_id:
+            raise ValueError("case_id no puede estar vacío.")
+        if limit <= 0:
+            raise ValueError("limit debe ser mayor que cero.")
+        if distance_threshold is not None and distance_threshold < 0:
+            raise ValueError("distance_threshold no puede ser negativo.")
+
+        normalized_version = (
+            document_version.strip()
+            if document_version is not None
+            else self._document_version
+        )
+        if not normalized_version:
+            raise ValueError("document_version no puede estar vacío.")
+
+        source_document = self._document_repository.get_by_case_id_and_version(
+            normalized_case_id,
+            normalized_version,
+        )
+        if source_document is None:
+            return IncidentSemanticSearchResult(
+                query_text=f"case_id:{normalized_case_id}",
+                document_version=normalized_version,
+                limit=limit,
+                distance_threshold=distance_threshold,
+                query_embedding_dimensions=0,
+                results=[],
+            )
+
+        matches = self._document_repository.search_similar_by_embedding(
+            list(source_document.embedding),
+            limit=limit,
+            distance_threshold=distance_threshold,
+            document_version=normalized_version,
+            exclude_case_ids=[normalized_case_id],
+        )
+
+        return IncidentSemanticSearchResult(
+            query_text=source_document.document_text,
+            document_version=normalized_version,
+            limit=limit,
+            distance_threshold=distance_threshold,
+            query_embedding_dimensions=len(source_document.embedding),
+            results=[
+                self._to_match(match)
+                for match in matches
+            ],
+        )
+
     def _to_match(
         self,
         match: IncidentRetrievalDocumentSimilarityResult,

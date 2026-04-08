@@ -146,6 +146,60 @@ class RetrievalSettings(BaseAppSettings):
     )
 
 
+class ConversationRedisSettings(BaseAppSettings):
+    """Configuración de memoria corta conversacional sobre Redis."""
+
+    enabled: bool = Field(
+        default=True,
+        alias="CONVERSATION_REDIS_ENABLED",
+    )
+    host: str = Field(
+        default="localhost",
+        alias="CONVERSATION_REDIS_HOST",
+    )
+    port: int = Field(
+        default=6379,
+        alias="CONVERSATION_REDIS_PORT",
+    )
+    db: int = Field(
+        default=0,
+        alias="CONVERSATION_REDIS_DB",
+    )
+    password: str = Field(
+        default="",
+        alias="CONVERSATION_REDIS_PASSWORD",
+    )
+    session_ttl_seconds: int = Field(
+        default=3600,
+        alias="CONVERSATION_SESSION_TTL_SECONDS",
+    )
+    key_prefix: str = Field(
+        default="conversation:session",
+        alias="CONVERSATION_REDIS_KEY_PREFIX",
+    )
+
+
+class ConversationReasoningSettings(BaseAppSettings):
+    """Configuración del cerebro LLM del agente conversacional."""
+
+    provider: str = Field(
+        default="gemini",
+        alias="BRAIN_REASONING_PROVIDER",
+    )
+    model_name: str = Field(
+        default="",
+        alias="BRAIN_REASONING_AGENT",
+    )
+    temperature: float = Field(
+        default=0.2,
+        alias="BRAIN_REASONING_TEMPERATURE",
+    )
+    prompts_dir: str = Field(
+        default="app/conversation/prompts",
+        alias="BRAIN_REASONING_PROMPTS_DIR",
+    )
+
+
 class Settings:
     """
     Objeto raíz de configuración.
@@ -163,6 +217,8 @@ class Settings:
         self.features = FeatureSettings()
         self.agentic_models = AgenticModelSettings()
         self.retrieval = RetrievalSettings()
+        self.conversation_redis = ConversationRedisSettings()
+        self.conversation_reasoning = ConversationReasoningSettings()
 
 
 @lru_cache(maxsize=1)

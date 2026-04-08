@@ -169,12 +169,14 @@ class IncidentRetrievalDocumentRepository:
         limit: int = 5,
         distance_threshold: float | None = None,
         document_version: str | None = None,
+        exclude_case_ids: list[str] | None = None,
     ) -> list[IncidentRetrievalDocumentSimilarityResult]:
         return self.search_similar_by_embedding(
             embedding,
             limit=limit,
             distance_threshold=distance_threshold,
             document_version=document_version,
+            exclude_case_ids=exclude_case_ids,
         )
 
     def search_similar_by_embedding(
@@ -184,6 +186,7 @@ class IncidentRetrievalDocumentRepository:
         limit: int = 5,
         distance_threshold: float | None = None,
         document_version: str | None = None,
+        exclude_case_ids: list[str] | None = None,
     ) -> list[IncidentRetrievalDocumentSimilarityResult]:
         normalized_embedding = self._normalize_embedding(embedding)
         if len(normalized_embedding) == 0:
@@ -214,6 +217,12 @@ class IncidentRetrievalDocumentRepository:
         if distance_threshold is not None:
             query = query.filter(distance <= distance_threshold)
 
+        normalized_exclusions = self._normalize_case_id_list(exclude_case_ids or [])
+        if normalized_exclusions:
+            query = query.filter(
+                IncidentRetrievalDocumentModel.case_id.notin_(normalized_exclusions)
+            )
+
         rows = query.order_by(distance.asc()).limit(limit).all()
         return [
             IncidentRetrievalDocumentSimilarityResult(
@@ -230,3 +239,12 @@ class IncidentRetrievalDocumentRepository:
             embedding = embedding.tolist()
 
         return [float(value) for value in embedding]  # type: ignore[arg-type]
+
+    def _normalize_case_id_list(self, case_ids: list[str]) -> list[str]:
+        return list(
+            dict.fromkeys(
+                normalized
+                for case_id in case_ids
+                if (normalized := case_id.strip().upper())
+            )
+        )

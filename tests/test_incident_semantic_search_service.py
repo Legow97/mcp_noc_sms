@@ -81,6 +81,59 @@ class IncidentSemanticSearchServiceTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "distance_threshold no puede ser negativo"):
             service.search("aws", distance_threshold=-0.1)
 
+    def test_search_similar_to_case_uses_persisted_document_embedding(self) -> None:
+        document_repository = Mock()
+        source_document = Mock()
+        source_document.document_text = "doc base"
+        source_document.embedding = [0.1, 0.2, 0.3]
+        document_repository.get_by_case_id_and_version.return_value = source_document
+        document_repository.search_similar_by_embedding.return_value = [
+            IncidentRetrievalDocumentSimilarityResult(
+                case_id="INC200",
+                document_version="v1",
+                document_text="doc similar",
+                distance=0.07,
+            )
+        ]
+
+        service = IncidentSemanticSearchService(
+            db_session=Mock(),
+            embedding_service=Mock(),
+            document_repository=document_repository,
+        )
+
+        result = service.search_similar_to_case(" inc100 ", limit=3)
+
+        self.assertEqual(result.query_text, "doc base")
+        self.assertEqual(result.query_embedding_dimensions, 3)
+        self.assertEqual(result.results[0].case_id, "INC200")
+        document_repository.get_by_case_id_and_version.assert_called_once_with(
+            "INC100",
+            "v1",
+        )
+        document_repository.search_similar_by_embedding.assert_called_once_with(
+            [0.1, 0.2, 0.3],
+            limit=3,
+            distance_threshold=None,
+            document_version="v1",
+            exclude_case_ids=["INC100"],
+        )
+
+    def test_search_similar_to_case_returns_empty_when_document_missing(self) -> None:
+        document_repository = Mock()
+        document_repository.get_by_case_id_and_version.return_value = None
+        service = IncidentSemanticSearchService(
+            db_session=Mock(),
+            embedding_service=Mock(),
+            document_repository=document_repository,
+        )
+
+        result = service.search_similar_to_case("INC404")
+
+        self.assertEqual(result.query_text, "case_id:INC404")
+        self.assertEqual(result.results, [])
+        self.assertEqual(result.query_embedding_dimensions, 0)
+
 
 if __name__ == "__main__":
     unittest.main()

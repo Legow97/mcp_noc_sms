@@ -8,3 +8,4 @@ psycopg[binary]
 pgvector
 openai
 google-genai
+redis
