@@ -195,7 +195,7 @@ class ConversationReasoningSettings(BaseAppSettings):
         alias="BRAIN_REASONING_TEMPERATURE",
     )
     prompts_dir: str = Field(
-        default="app/conversation/prompts",
+        default="app/conversation/config/prompts",
         alias="BRAIN_REASONING_PROMPTS_DIR",
     )
 

@@ -1,0 +1,15 @@
+.git
+.env
+.env.*
+.venv
+env
+__pycache__
+*.pyc
+.pytest_cache
+.mypy_cache
+.ruff_cache
+logs
+notebooklm
+sms_model.txt
+tests
+docs

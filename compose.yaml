@@ -1,4 +1,29 @@
 services:
+  api:
+    build:
+      context: .
+    container_name: incident-memory-api
+    env_file:
+      - .env
+    environment:
+      APP_HOST: 0.0.0.0
+      APP_PORT: 8000
+      DATABASE_URL: postgresql+psycopg://postgres:postgres@postgres:5432/incident_memory_db
+      CONVERSATION_REDIS_HOST: redis
+      GOOGLE_GENAI_USE_VERTEXAI: "False"
+    ports:
+      - "8001:8000"
+    depends_on:
+      - postgres
+      - redis
+  frontend:
+    build:
+      context: ./frontend
+    container_name: incident-memory-frontend
+    ports:
+      - "8090:80"
+    depends_on:
+      - api
   postgres:
     image: pgvector/pgvector:pg16
     container_name: incident-memory-postgres

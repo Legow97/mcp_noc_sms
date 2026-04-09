@@ -1,26 +1,7 @@
-from __future__ import annotations
+"""Legacy compatibility wrapper for the LLM gateway factory."""
 
-from app.core.config import settings
-from app.conversation.model_gateway import ConversationModelGateway
-from app.conversation.providers.gemini_model_gateway import (
-    ConversationGeminiModelGateway,
-)
-from app.conversation.providers.openai_compatible_model_gateway import (
-    ConversationOpenAICompatibleModelGateway,
+from app.conversation.infrastructure.llm.model_gateway_factory import (
+    build_conversation_model_gateway,
 )
 
-
-def build_conversation_model_gateway() -> ConversationModelGateway:
-    """
-    Construye el gateway LLM conversacional desde settings.
-    """
-
-    provider = settings.conversation_reasoning.provider.strip().lower()
-
-    if provider == "gemini":
-        return ConversationGeminiModelGateway()
-
-    if provider in {"openai_compatible", "openai-compatible"}:
-        return ConversationOpenAICompatibleModelGateway()
-
-    raise ValueError(f"Proveedor conversacional no soportado: {provider}")
+__all__ = ["build_conversation_model_gateway"]

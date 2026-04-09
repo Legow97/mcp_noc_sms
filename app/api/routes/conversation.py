@@ -3,12 +3,16 @@ from fastapi import Depends
 from sqlalchemy.orm import Session
 
 from app.api.dependencies import db_session_dependency
-from app.conversation.context_builder import ContextBuilder
-from app.conversation.orchestrator import ConversationOrchestrator
+from app.conversation.application.reasoning.orchestrator import ConversationOrchestrator
+from app.conversation.application.services.context_builder import ContextBuilder
 from app.conversation.contracts.requests import ConversationRequest
 from app.conversation.contracts.responses import ConversationResponse
-from app.conversation.historical_context_service import HistoricalContextService
-from app.conversation.session_store_factory import build_conversation_session_store
+from app.conversation.infrastructure.historical.historical_context_service import (
+    HistoricalContextService,
+)
+from app.conversation.infrastructure.session.session_store_factory import (
+    build_conversation_session_store,
+)
 
 
 router = APIRouter(

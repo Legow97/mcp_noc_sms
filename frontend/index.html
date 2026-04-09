@@ -1,0 +1,63 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>AsisOperational</title>
+    <link rel="stylesheet" href="/styles.css" />
+  </head>
+  <body>
+    <div class="app-shell">
+      <aside class="sidebar" aria-label="Panel de chats">
+        <div class="brand">
+          <div class="brand-mark">AO</div>
+          <div>
+            <p class="brand-name">AsisOperational</p>
+            <p class="brand-caption">Operational Memory</p>
+          </div>
+        </div>
+
+        <button id="new-chat-button" class="new-chat-button" type="button">
+          Nuevo chat
+        </button>
+
+        <div class="session-card">
+          <p class="session-label">Session ID</p>
+          <p id="session-id" class="session-id">Sin sesión activa</p>
+        </div>
+      </aside>
+
+      <main class="chat-panel">
+        <header class="chat-header">
+          <div>
+            <h1>AsisOperational</h1>
+            <p>Consulta incidentes, contexto histórico y guía operacional.</p>
+          </div>
+          <span id="status-badge" class="status-badge">Listo</span>
+        </header>
+
+        <section id="messages" class="messages" aria-live="polite">
+          <div class="empty-state">
+            <h2>¿En qué puedo ayudarte?</h2>
+            <p>Inicia una consulta operacional.</p>
+          </div>
+        </section>
+
+        <form id="chat-form" class="composer">
+          <label class="sr-only" for="message-input">Mensaje</label>
+          <textarea
+            id="message-input"
+            name="message"
+            rows="1"
+            placeholder="Escribe tu mensaje..."
+            autocomplete="off"
+            required
+          ></textarea>
+          <button id="send-button" type="submit">Enviar</button>
+        </form>
+      </main>
+    </div>
+
+    <script src="/app.js" defer></script>
+  </body>
+</html>
