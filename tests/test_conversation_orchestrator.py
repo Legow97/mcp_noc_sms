@@ -4,18 +4,20 @@ from datetime import datetime, timezone
 from types import SimpleNamespace
 from unittest.mock import Mock
 
-from app.conversation.context_builder import ContextBuilder
+from app.conversation.application.reasoning.orchestrator import ConversationOrchestrator
+from app.conversation.application.reasoning.reasoning_agent import ReasoningAgent
+from app.conversation.application.services.context_builder import ContextBuilder
 from app.conversation.contracts.requests import ConversationMode, ConversationRequest
 from app.conversation.contracts.responses import ConversationResponseStatus
-from app.conversation.historical_context_service import HistoricalContextService
-from app.conversation.model_gateway import (
+from app.conversation.infrastructure.historical.historical_context_service import (
+    HistoricalContextService,
+)
+from app.conversation.infrastructure.llm.model_gateway import (
     ConversationModelGateway,
     ConversationModelInvocation,
     ConversationModelRawResponse,
 )
-from app.conversation.orchestrator import ConversationOrchestrator
-from app.conversation.reasoning_agent import ReasoningAgent
-from app.conversation.session_store import InMemorySessionStore
+from app.conversation.infrastructure.session.session_store import InMemorySessionStore
 from app.services.retrieval.incident_semantic_search_service import (
     IncidentSemanticSearchMatch,
     IncidentSemanticSearchResult,

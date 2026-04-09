@@ -1,6 +1,9 @@
 import unittest
 
-from app.conversation.clarification import ClarificationAssessment
+from app.conversation.application.reasoning.reasoning_agent import ReasoningAgent
+from app.conversation.application.services.clarification_service import (
+    ClarificationAssessment,
+)
 from app.conversation.contracts.requests import ConversationMode, ConversationRequest
 from app.conversation.contracts.historical_context import (
     ConversationHistoricalContext,
@@ -12,13 +15,14 @@ from app.conversation.contracts.session_models import (
     ConversationContext,
     ConversationSessionState,
 )
-from app.conversation.external_research import ExternalResearchResult
-from app.conversation.model_gateway import (
+from app.conversation.infrastructure.llm.model_gateway import (
     ConversationModelGateway,
     ConversationModelInvocation,
     ConversationModelRawResponse,
 )
-from app.conversation.reasoning_agent import ReasoningAgent
+from app.conversation.infrastructure.research.external_research import (
+    ExternalResearchResult,
+)
 
 
 class FailingConversationModelGateway(ConversationModelGateway):

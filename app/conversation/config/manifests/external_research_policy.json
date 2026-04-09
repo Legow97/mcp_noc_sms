@@ -1,0 +1,41 @@
+{
+  "enabled": true,
+  "allow_unlisted_domains": true,
+  "caution_mode": true,
+  "whitelist_domains": [
+    "docs.oracle.com",
+    "oracle.com",
+    "docs.aws.amazon.com",
+    "aws.amazon.com",
+    "cloud.google.com",
+    "learn.microsoft.com",
+    "kubernetes.io",
+    "docs.python.org"
+  ],
+  "blacklist_domains": [
+    "pastebin.com",
+    "gist.github.com",
+    "reddit.com",
+    "facebook.com",
+    "x.com"
+  ],
+  "caution_domains": [
+    "stackoverflow.com",
+    "medium.com",
+    "github.com"
+  ],
+  "query_domain_hints": {
+    "oracle": ["docs.oracle.com", "oracle.com"],
+    "aws": ["docs.aws.amazon.com", "aws.amazon.com"],
+    "amazon web services": ["docs.aws.amazon.com", "aws.amazon.com"],
+    "gcp": ["cloud.google.com"],
+    "google cloud": ["cloud.google.com"],
+    "azure": ["learn.microsoft.com"],
+    "kubernetes": ["kubernetes.io"],
+    "python": ["docs.python.org"]
+  },
+  "max_results": 3,
+  "max_context_items": 3,
+  "max_query_length": 320,
+  "timeout_seconds": 5
+}

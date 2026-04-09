@@ -5,7 +5,9 @@ from unittest.mock import Mock
 
 from app.conversation.contracts.requests import ConversationRequest
 from app.conversation.contracts.session_models import ConversationSessionState
-from app.conversation.historical_context_service import HistoricalContextService
+from app.conversation.infrastructure.historical.historical_context_service import (
+    HistoricalContextService,
+)
 from app.services.retrieval.incident_semantic_search_service import (
     IncidentSemanticSearchMatch,
     IncidentSemanticSearchResult,

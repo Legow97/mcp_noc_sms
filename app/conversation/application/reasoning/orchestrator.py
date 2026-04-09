@@ -14,9 +14,6 @@ from app.conversation.contracts.session_models import (
     ConversationMessage,
     ConversationSessionState,
 )
-from app.conversation.infrastructure.research.external_research import (
-    ExternalResearchService,
-)
 from app.conversation.infrastructure.safety.sanitization import SanitizationService
 from app.conversation.infrastructure.session.session_store import (
     InMemorySessionStore,
@@ -37,16 +34,12 @@ class ConversationOrchestrator:
         clarification_service: ClarificationService | None = None,
         session_store: SessionStore | None = None,
         sanitization_service: SanitizationService | None = None,
-        external_research_service: ExternalResearchService | None = None,
     ) -> None:
         self._reasoning_agent = reasoning_agent or ReasoningAgent()
         self._context_builder = context_builder or ContextBuilder()
         self._clarification_service = clarification_service or ClarificationService()
         self._session_store = session_store or InMemorySessionStore()
         self._sanitization_service = sanitization_service or SanitizationService()
-        self._external_research_service = (
-            external_research_service or ExternalResearchService()
-        )
 
     def handle(self, request: ConversationRequest) -> ConversationResponse:
         sanitized_request = self._sanitization_service.sanitize_request(request)
@@ -63,16 +56,11 @@ class ConversationOrchestrator:
             request=sanitized_request,
             context=context,
         )
-        external_research = self._external_research_service.gather(
-            request=sanitized_request,
-            context=context,
-        )
         agent_result = self._reasoning_agent.respond(
             request=sanitized_request,
             session_state=session_state,
             context=context,
             clarification=clarification,
-            external_research=external_research,
         )
         sanitized_response = self._sanitization_service.sanitize_response(agent_result)
         updated_session_state = self._build_updated_session_state(

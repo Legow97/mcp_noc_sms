@@ -7,9 +7,14 @@ from typing import Any
 from pydantic import BaseModel, Field, ValidationError
 
 from app.core.config import settings
+from app.conversation.application.reasoning.execution_context import (
+    ConversationExecutionContext,
+)
 from app.conversation.application.services.clarification_service import (
     ClarificationAssessment,
 )
+from app.conversation.application.tools.factory import build_conversation_tool_registry
+from app.conversation.application.tools.registry import ToolRegistry
 from app.conversation.contracts.requests import ConversationRequest
 from app.conversation.contracts.responses import (
     ConversationAgentResult,
@@ -61,6 +66,7 @@ class ReasoningAgent:
         self,
         model_gateway: ConversationModelGateway | None = None,
         prompt_loader: MarkdownPromptLoader | None = None,
+        tool_registry: ToolRegistry | None = None,
         model_name: str | None = None,
         temperature: float | None = None,
     ) -> None:
@@ -68,6 +74,7 @@ class ReasoningAgent:
         self._prompt_loader = prompt_loader or MarkdownPromptLoader(
             settings.conversation_reasoning.prompts_dir
         )
+        self._tool_registry = tool_registry or build_conversation_tool_registry()
         self._model_name = model_name or settings.conversation_reasoning.model_name
         self._temperature = (
             temperature
@@ -81,14 +88,22 @@ class ReasoningAgent:
         session_state: ConversationSessionState,
         context: ConversationContext,
         clarification: ClarificationAssessment,
-        external_research: ExternalResearchResult,
+        external_research: ExternalResearchResult | None = None,
     ) -> ConversationAgentResult:
+        external_research = external_research or self._maybe_gather_external_research(
+            request=request,
+            session_state=session_state,
+            context=context,
+            clarification=clarification,
+        )
+
         if not self._model_name:
             return self._fallback_response(
                 request,
                 session_state,
                 clarification,
                 context,
+                external_research,
             )
 
         invocation = ConversationModelInvocation(
@@ -113,6 +128,7 @@ class ReasoningAgent:
                 session_state,
                 clarification,
                 context,
+                external_research,
             )
 
         return ConversationAgentResult(
@@ -200,6 +216,7 @@ class ReasoningAgent:
         session_state: ConversationSessionState,
         clarification: ClarificationAssessment,
         context: ConversationContext,
+        external_research: ExternalResearchResult,
     ) -> ConversationAgentResult:
         message = request.message.strip()
         intent = self._infer_intent(message, clarification)
@@ -213,6 +230,36 @@ class ReasoningAgent:
         ):
             intent = ConversationIntent.TROUBLESHOOTING_REQUEST
         historical_context = context.historical_context
+
+        if external_research.used and external_research.findings:
+            return ConversationAgentResult(
+                intent=intent,
+                status=(
+                    ConversationResponseStatus.NEEDS_CLARIFICATION
+                    if clarification.needs_clarification
+                    else ConversationResponseStatus.COMPLETED
+                ),
+                response_text=(
+                    "Consulté fuentes externas bajo policy controlada y las combiné "
+                    "con el contexto interno disponible. Hallazgos externos: "
+                    + " | ".join(external_research.findings[:2])
+                    + ". Tómalos como referencia complementaria, no como reemplazo "
+                    "de la validación interna."
+                ),
+                missing_information=list(clarification.missing_information),
+                follow_up_questions=list(clarification.follow_up_questions[:3]),
+                active_incident_ids=list(session_state.active_incident_ids),
+                active_entities=self._merge_entities(
+                    session_state.active_entities,
+                    self._extract_active_entities(message),
+                ),
+                active_issue_summary=self._build_issue_summary(message, session_state),
+                latest_historical_matches=list(session_state.latest_historical_matches),
+                troubleshooting_context=clarification.known_information,
+                latest_guidance_summary=(
+                    "Se combinaron referencias externas controladas con contexto interno."
+                ),
+            )
 
         if historical_context.semantic_matches:
             matches = [
@@ -611,3 +658,96 @@ class ReasoningAgent:
                 260,
             )
         return compact_message
+
+    def _maybe_gather_external_research(
+        self,
+        *,
+        request: ConversationRequest,
+        session_state: ConversationSessionState,
+        context: ConversationContext,
+        clarification: ClarificationAssessment,
+    ) -> ExternalResearchResult:
+        if not self._should_consider_external_research(request, context):
+            return ExternalResearchResult(
+                enabled=settings.features.allow_external_sources,
+                status="skipped",
+            )
+
+        execution_context = ConversationExecutionContext(
+            request=request,
+            session_state=session_state,
+            context=context,
+            clarification_assessment=clarification,
+            enabled_tools=list(
+                dict.fromkeys([*request.requested_capabilities, "external_research"])
+            ),
+        )
+        tool_result = self._tool_registry.invoke(
+            "external_research",
+            context=execution_context,
+        )
+        if not tool_result.data:
+            return ExternalResearchResult(
+                enabled=settings.features.allow_external_sources,
+                status=(
+                    "disabled"
+                    if tool_result.status.value == "disabled"
+                    else "failed"
+                    if tool_result.errors
+                    else "skipped"
+                ),
+                policy_summary=tool_result.summary,
+                errors=list(tool_result.errors),
+            )
+        return ExternalResearchResult.model_validate(tool_result.data)
+
+    @staticmethod
+    def _should_consider_external_research(
+        request: ConversationRequest,
+        context: ConversationContext,
+    ) -> bool:
+        message = request.message.strip().lower()
+        requested_capabilities = {
+            capability.strip().lower()
+            for capability in request.requested_capabilities
+        }
+        if requested_capabilities & {
+            "external_research",
+            "official_docs",
+            "official_documentation",
+            "documentation_lookup",
+        }:
+            return True
+
+        explicit_phrases = (
+            "fuente oficial",
+            "fuentes oficiales",
+            "documentación oficial",
+            "documentacion oficial",
+            "revisa documentación",
+            "revisa documentacion",
+            "consulta fuentes",
+            "consulta documentación",
+            "consulta documentacion",
+            "según aws",
+            "segun aws",
+            "según oracle",
+            "segun oracle",
+            "revisa documentación oficial",
+            "revisa documentacion oficial",
+        )
+        if any(phrase in message for phrase in explicit_phrases):
+            return True
+
+        mentions_vendor = any(
+            vendor in message
+            for vendor in (
+                "aws",
+                "oracle",
+                "azure",
+                "gcp",
+                "google cloud",
+                "kubernetes",
+            )
+        )
+        return mentions_vendor and not context.historical_context.has_evidence

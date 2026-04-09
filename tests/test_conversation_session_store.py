@@ -2,8 +2,10 @@ import unittest
 
 from app.conversation.contracts.requests import ConversationMode
 from app.conversation.contracts.session_models import ConversationSessionState
-from app.conversation.redis_session_store import RedisSessionStore
-from app.conversation.session_store import (
+from app.conversation.infrastructure.session.redis_session_store import (
+    RedisSessionStore,
+)
+from app.conversation.infrastructure.session.session_store import (
     InMemorySessionStore,
     ResilientSessionStore,
     SessionStore,
